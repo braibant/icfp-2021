@@ -36,9 +36,8 @@ let load_exn ~problem ~filename =
   set_vertices (create problem) vertices
 ;;
 
-let could_deform t (v1, v1_p) (v2, v2_p) =
-  let orig_length = Map.find_exn t.orig_lengths (v1, v2) in
-  let curr_length = Point.distance v1_p v2_p in
+let could_deform t edge curr_length =
+  let orig_length = Map.find_exn t.orig_lengths edge in
   Bignum.(abs ((curr_length / orig_length) - one) <= t.problem.epsilon / million)
 ;;
 
@@ -52,10 +51,10 @@ let move t vertex ~to_:point =
     if i = vertex then point else current_point t vertex
   in
   let possible =
-    List.for_all edges ~f:(fun (from_, to_) ->
-        let from_p = cur_p from_ in
-        let to_p = cur_p to_ in
-        could_deform t (from_, from_p) (to_, to_p))
+    List.for_all edges ~f:(fun edge ->
+        let from_, to_ = edge in
+        let new_length = Point.distance (cur_p from_) (cur_p to_) in
+        could_deform t edge new_length)
   in
   if possible
   then
