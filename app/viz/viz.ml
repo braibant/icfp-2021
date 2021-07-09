@@ -6,7 +6,7 @@ let display ~filename =
   let prob = Problem.load_exn ~filename in
   G.open_graph " 1000x1000";
   G.set_window_title "ICFPC 2021";
-  printf !"%{sexp:Problem.t}" prob
+  printf !"%{Problem#hum}" prob
 ;;
 
 let commands =

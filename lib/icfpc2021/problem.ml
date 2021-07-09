@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { hole : Point.t list
-  ; figure_edges : Point.t list
+  ; figure_edges : Point.t list (* CR scvalex: This should be a list of points. *)
   ; figure_vertices : Point.t list
   ; epsilon : Bignum.t
   }
@@ -43,4 +43,31 @@ let load_exn ~filename =
     |> json_as_bignum_pair_list ~what:"figure vertices"
   in
   { hole; figure_edges; figure_vertices; epsilon }
+;;
+
+let max_xy t =
+  let fold_to_max points (max_x, max_y) =
+    List.fold_left points ~init:(max_x, max_y) ~f:(fun (max_x, max_y) Point.{ x; y } ->
+        Bignum.max max_x x, Bignum.max max_y y)
+  in
+  (Bignum.zero, Bignum.zero)
+  |> fold_to_max t.hole
+  |> fold_to_max t.figure_edges
+  |> fold_to_max t.figure_vertices
+;;
+
+let to_string_hum t =
+  let max_x, max_y = max_xy t in
+  sprintf
+    !"Problem with:\n\
+     \  - hole of %d points,\n\
+     \  - figure of %d vertices and %d edges,\n\
+     \  - epsilon: %{Bignum#hum},\n\
+     \  - max x, y: %{Bignum#hum}x%{Bignum#hum}"
+    (List.length t.hole)
+    (List.length t.figure_vertices)
+    (List.length t.figure_edges)
+    t.epsilon
+    max_x
+    max_y
 ;;

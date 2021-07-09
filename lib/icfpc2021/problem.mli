@@ -9,3 +9,5 @@ type t =
 [@@deriving sexp]
 
 val load_exn : filename:string -> t
+val max_xy : t -> Bignum.t * Bignum.t
+val to_string_hum : t -> string
