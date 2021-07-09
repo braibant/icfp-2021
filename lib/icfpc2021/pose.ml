@@ -41,7 +41,7 @@ let deformation_badness t edge curr_length =
   let orig_length = Map.find_exn t.orig_lengths edge in
   let off_from_one = Bignum.(abs ((curr_length / orig_length) - one)) in
   let tolerance = Bignum.(t.problem.epsilon / million) in
-  let could_not = Bignum.(off_from_one <= tolerance) in
+  let could_not = Bignum.(off_from_one > tolerance) in
   eprintf
     !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
       %{Bignum#hum} => %b\n\

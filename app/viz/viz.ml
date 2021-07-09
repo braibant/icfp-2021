@@ -215,7 +215,6 @@ let draw_problem
         to_float (off - (prob.epsilon / of_int 1000000))
       in
       let wrongness = Float.max 0.0 wrongness |> Float.min 1.0 in
-      printf "wrongness: %.2f\n%!" wrongness;
       let redness = 50 + Float.to_int (205. *. wrongness) in
       G.set_color (G.rgb redness 50 50);
       try
