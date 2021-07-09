@@ -15,7 +15,12 @@ let draw_bg () =
 
 (* Draw the hole, figure, and various info.  Note that the coordinate
    system is (0, 0) in the bottom left corner and growing rightwards
-   and upwards. *)
+   and upwards.
+
+   There are two coordinate systems here:
+   - figure space where coordinates are in [Bignum.t]s, and
+   - screen/wall space where coordinates are in [ints]
+*)
 let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   (* Draw a blue border around the wall. *)
   G.set_color (G.rgb 100 100 150);
@@ -33,20 +38,24 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   let scale_x =
     let open Bignum in
     let wall_width = of_int wall_width in
-    max_x / wall_width
+    (max_x + Bignum.one) / wall_width
   in
   let scale_y =
     let open Bignum in
     let wall_height = of_int wall_height in
-    max_y / wall_height
+    (max_y + Bignum.one) / wall_height
   in
   let scale = Bignum.max scale_x scale_y in
-  let scale_point Point.{ x; y } =
+  let figure_to_wall_space Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
-    let y =
-      wall_y + wall_height - (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn)
-    in
+    let y = wall_y + (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn) in
     x, y
+  in
+  (* One [px] is the size of one pixel in figure space converted to
+     wall space. This matters if the figure is being scaled up. *)
+  let px =
+    let open Bignum in
+    round (one / scale) ~dir:`Nearest |> to_int_exn
   in
   (* Draw some info text. *)
   G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 10);
@@ -54,9 +63,22 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   G.draw_string (sprintf !"Scale: %{Bignum#hum}" scale);
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_color G.black;
-  G.fill_poly (List.map prob.hole ~f:scale_point |> Array.of_list);
+  G.fill_poly
+    (prob.hole
+    |> List.map ~f:figure_to_wall_space
+    |> List.map ~f:(fun (x, y) ->
+           (* Center the vertex into the "pixel". *)
+           x + (px / 2), y + (px / 2))
+    |> Array.of_list);
   (* Draw the red stick figure. *)
-  let scaled_vertices = List.map prob.figure_vertices ~f:scale_point |> Array.of_list in
+  let scaled_vertices =
+    prob.figure_vertices
+    |> List.map ~f:figure_to_wall_space
+    |> List.map ~f:(fun (x, y) ->
+           (* Center the vertex into the "pixel". *)
+           x + (px / 2), y + (px / 2))
+    |> Array.of_list
+  in
   G.set_color G.red;
   G.draw_segments
     (List.map prob.figure_edges ~f:(fun (idx1, idx2) ->
@@ -78,7 +100,6 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
          && wall_y <= mouse_y
          && mouse_y < wall_y + wall_height
       then (
-        (* We round here because figure space coordinates are always integers. *)
         let mouse_x =
           Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
         in
@@ -101,20 +122,7 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   let () =
     match mouse_x, mouse_y with
     | Some mouse_x, Some mouse_y ->
-      let mouse_x, mouse_y =
-        let x =
-          wall_x + (Bignum.(mouse_x / scale) |> Bignum.round |> Bignum.to_int_exn)
-        in
-        (* Note that we do NOT flip the y here. *)
-        let y =
-          wall_y + (Bignum.(mouse_y / scale) |> Bignum.round |> Bignum.to_int_exn)
-        in
-        x, y
-      in
-      let px =
-        let open Bignum in
-        round (one / scale) ~dir:`Nearest |> to_int_exn
-      in
+      let mouse_x, mouse_y = figure_to_wall_space (Point.create ~x:mouse_x ~y:mouse_y) in
       G.draw_rect mouse_x mouse_y px px
     | _ -> ()
   in
