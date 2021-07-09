@@ -16,10 +16,11 @@ let draw_bg () =
 module State = struct
   type t =
     { selected_vertex : int option
+    ; frozen_vertices : int list (* CR scvalex: Actually use frozen_vertices. *)
     ; pose : Pose.t
     }
 
-  let create ~pose = { selected_vertex = None; pose }
+  let create ~pose = { selected_vertex = None; pose; frozen_vertices = [] }
 end
 
 open State
@@ -162,6 +163,7 @@ let draw_problem
     ~mouse
     ~mouse_clicked
     ~space_pressed
+    ~f_pressed:_
     ~state
   =
   let prob = Pose.problem state.pose in
@@ -311,6 +313,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Click to select vertex");
   draw_bottom_text (sprintf !"Press SPACE to deselect vertex");
   draw_bottom_text (sprintf !"Press s to save");
+  draw_bottom_text (sprintf !"Press f to freeze highlighted vertex");
   state
 ;;
 
@@ -327,12 +330,14 @@ let rec interact ~state ~answer_filename =
   let shutting_down = ref false in
   let space_pressed = ref false in
   let s_pressed = ref false in
+  let f_pressed = ref false in
   let () =
     while G.key_pressed () do
       match G.read_key () with
       | 'q' | '\027' -> shutting_down := true
       | ' ' -> space_pressed := true
       | 's' -> s_pressed := true
+      | 'f' -> f_pressed := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -353,6 +358,7 @@ let rec interact ~state ~answer_filename =
       ~mouse:(get_mouse_pos ())
       ~mouse_clicked:(G.button_down ())
       ~space_pressed:!space_pressed
+      ~f_pressed:!f_pressed
       ~state
   in
   G.synchronize ();
