@@ -1,2 +1,0 @@
-#!/bin/bash
-curl --silent -H 'Accept: application/json' -H "Authorization: Bearer 6a1b4728-a989-4a82-85af-3b344635c125" "$@"
