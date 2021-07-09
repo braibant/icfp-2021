@@ -131,7 +131,7 @@ let draw_problem
             let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
             if Point.equal
                  mouse_point
-                 (List.nth_exn (Pose.vertices state.pose) selected_vertex)
+                 (Map.find_exn (Pose.vertices state.pose) selected_vertex)
             then state
             else (
               let pose = Pose.move state.pose selected_vertex ~to_:mouse_point in
@@ -153,10 +153,10 @@ let draw_problem
           | Some mouse_x, Some mouse_y ->
             let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
             let selected_idx, _distance =
-              List.foldi
+              Map.fold
                 ~init:(-1, Bignum.million)
                 (Pose.vertices state.pose)
-                ~f:(fun idx (best, best_distance) v ->
+                ~f:(fun ~key:idx ~data:v (best, best_distance) ->
                   let d = Point.distance v mouse_point in
                   if Bignum.(d < best_distance) then idx, d else best, best_distance)
             in
@@ -193,6 +193,7 @@ let draw_problem
   (* Draw the red stick figure. *)
   let scaled_pose_vertices =
     Pose.vertices state.pose
+    |> Map.data
     |> List.map ~f:figure_to_wall_space
     |> List.map ~f:(fun (x, y) ->
            (* Center the vertex into the "pixel". *)
@@ -240,7 +241,7 @@ let draw_problem
     match state.selected_vertex with
     | Some selected_vertex ->
       let point_x, point_y =
-        figure_to_wall_space (List.nth_exn (Pose.vertices state.pose) selected_vertex)
+        figure_to_wall_space (Map.find_exn (Pose.vertices state.pose) selected_vertex)
       in
       G.draw_rect point_x point_y px px
     | None -> ()
