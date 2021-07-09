@@ -279,7 +279,10 @@ let rec interact ~state ~answer_filename =
   if !s_pressed
   then (
     Pose.save_exn state.pose ~filename:answer_filename;
-    printf "Saved answer to %s!\n%!" answer_filename);
+    printf "Saved answer to %s!\n%!" answer_filename;
+    let invalid_edges = Pose.invalid_edges state.pose in
+    if List.length invalid_edges > 0
+    then printf "WARNING: Invalid edges: %d\n%!" (List.length invalid_edges));
   draw_bg ();
   let state =
     draw_problem

@@ -52,7 +52,7 @@ let save_exn t ~filename =
   let out = Out_channel.create filename in
   let formatter = Format.formatter_of_out_channel out in
   J.format formatter json;
-  Out_channel.flush out;
+  Format.pp_print_flush formatter ();
   Out_channel.close out
 ;;
 
@@ -61,16 +61,16 @@ let deformation_badness t edge curr_length =
   let off_from_one = Bignum.(abs ((curr_length / orig_length) - one)) in
   let tolerance = Bignum.(t.problem.epsilon / million) in
   let could_not = Bignum.(off_from_one > tolerance) in
-  eprintf
-    !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
-      %{Bignum#hum} => %b\n\
-      %!"
-    edge
-    orig_length
-    curr_length
-    off_from_one
-    tolerance
-    could_not;
+  (* eprintf
+   *   !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
+   *     %{Bignum#hum} => %b\n\
+   *     %!"
+   *   edge
+   *   orig_length
+   *   curr_length
+   *   off_from_one
+   *   tolerance
+   *   could_not; *)
   if could_not then Some off_from_one else None
 ;;
 
