@@ -48,7 +48,9 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   let scale = Bignum.max scale_x scale_y in
   let figure_to_wall_space Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
-    let y = wall_y + (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn) in
+    let y =
+      wall_y + wall_height - (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn)
+    in
     x, y
   in
   (* One [px] is the size of one pixel in figure space converted to
@@ -104,7 +106,8 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
           Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
         in
         let mouse_y =
-          Bignum.( * ) (Bignum.of_int (mouse_y - wall_y)) scale |> Bignum.round ~dir:`Down
+          Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale
+          |> Bignum.round ~dir:`Up
         in
         Some mouse_x, Some mouse_y)
       else None, None
