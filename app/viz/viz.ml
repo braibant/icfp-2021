@@ -51,7 +51,9 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   let figure_to_wall_space Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
     let y =
-      wall_y + wall_height - (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn)
+      wall_y
+      + wall_height
+      - (Bignum.((y + one) / scale) |> Bignum.round |> Bignum.to_int_exn)
     in
     x, y
   in
@@ -118,7 +120,9 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
           Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
         in
         let mouse_y =
-          Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale
+          Bignum.( - )
+            (Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale)
+            Bignum.one
           |> Bignum.round ~dir:`Up
         in
         Some mouse_x, Some mouse_y)
