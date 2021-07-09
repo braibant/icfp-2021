@@ -7,3 +7,4 @@ type t =
 [@@deriving fields, sexp]
 
 val create : x:Bignum.t -> y:Bignum.t -> t
+val equal : t -> t -> bool

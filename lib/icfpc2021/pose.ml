@@ -20,3 +20,9 @@ let load_exn ~problem ~filename =
   in
   set_vertices (create problem) vertices
 ;;
+
+let move t idx ~to_ =
+  let vertices = Array.of_list t.vertices in
+  vertices.(idx) <- to_;
+  { t with vertices = Array.to_list vertices }
+;;
