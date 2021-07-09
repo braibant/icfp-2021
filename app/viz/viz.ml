@@ -20,6 +20,8 @@ let draw_bg () =
    There are two coordinate systems here:
    - figure space where coordinates are in [Bignum.t]s, and
    - screen/wall space where coordinates are in [ints]
+
+   Graphics API: https://ocaml.github.io/graphics/graphics/Graphics/index.html
 *)
 let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   (* Draw a blue border around the wall. *)
@@ -31,7 +33,7 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   let wall_height = wall_height - 8 in
   let wall_width = wall_width - 8 in
   (* Draw the wall grey background. *)
-  G.set_color (G.rgb 200 200 200);
+  G.set_color (G.rgb 100 100 100);
   G.fill_rect wall_x wall_y wall_width wall_height;
   (* Figure out the scaling for the problem points. *)
   let max_x, max_y = Problem.max_xy prob in
@@ -64,13 +66,22 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   G.set_color G.white;
   G.draw_string (sprintf !"Scale: %{Bignum#hum}" scale);
   (* Draw the actual hole (scaled to the size of the wall). *)
-  G.set_color G.black;
-  G.fill_poly
-    (prob.hole
+  G.set_line_width (Int.max 1 (px / 2));
+  G.set_color (G.rgb 200 200 200);
+  let hole_vertices =
+    prob.hole
     |> List.map ~f:figure_to_wall_space
     |> List.map ~f:(fun (x, y) ->
            (* Center the vertex into the "pixel". *)
            x + (px / 2), y + (px / 2))
+  in
+  G.fill_poly (Array.of_list hole_vertices);
+  (* Draw the countour of the hole to account for the "line thickness"
+     that is ignored by [fill_poly].  Without this, if the figure is
+     scaled up, it looks like it doesn't fit in the hole. *)
+  G.draw_segments
+    (List.zip_exn hole_vertices (List.tl_exn hole_vertices @ [ List.hd_exn hole_vertices ])
+    |> List.map ~f:(fun ((x1, y1), (x2, y2)) -> x1, y1, x2, y2)
     |> Array.of_list);
   (* Draw the red stick figure. *)
   let scaled_vertices =
@@ -91,6 +102,7 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
          with
          | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ())
     |> Array.of_list);
+  G.set_line_width 1;
   (* Figure out where the mouse is in wall space and draw some info
      text. *)
   let mouse_x, mouse_y =
