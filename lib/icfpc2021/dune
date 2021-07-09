@@ -1,0 +1,4 @@
+(library
+ (name icfpc2021)
+ (libraries core)
+ (preprocess (pps ppx_jane)))
