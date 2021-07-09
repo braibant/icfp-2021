@@ -1,0 +1,7 @@
+(executable
+ (name tool)
+ (libraries
+  core
+  icfpc2021
+  )
+ (preprocess (pps ppx_jane)))

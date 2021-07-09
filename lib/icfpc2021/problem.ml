@@ -78,3 +78,10 @@ let to_string_hum t =
     max_x
     max_y
 ;;
+
+let score t =
+  let vertices = List.length t.figure_vertices in
+  let edges = List.length t.figure_edges in
+  let hole = List.length t.hole in
+  Float.(1000.0 * log (of_int vertices * of_int edges * of_int hole))
+;;

@@ -11,3 +11,6 @@ type t =
 val load_exn : filename:string -> t
 val max_xy : t -> Bignum.t * Bignum.t
 val to_string_hum : t -> string
+
+(* computes 1000 * log2 component of the score equation *)
+val score : t -> float
