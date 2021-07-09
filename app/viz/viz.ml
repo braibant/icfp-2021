@@ -215,8 +215,8 @@ let draw_problem
         to_float (off - (prob.epsilon / of_int 1000000))
       in
       let wrongness = Float.max 0.0 wrongness |> Float.min 1.0 in
-      let redness = 50 + Float.to_int (205. *. wrongness) in
-      G.set_color (G.rgb redness 50 50);
+      let redness = 100 + Float.to_int (155. *. wrongness) in
+      G.set_color (G.rgb redness 0 0);
       try
         let x1, y1 = scaled_pose_vertices.(idx1) in
         let x2, y2 = scaled_pose_vertices.(idx2) in
