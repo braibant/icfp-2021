@@ -16,7 +16,7 @@ let draw_bg () =
 (* Draw the hole, figure, and various info.  Note that the coordinate
    system is (0, 0) in the bottom left corner and growing rightwards
    and upwards. *)
-let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height =
+let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   (* Draw a blue border around the wall. *)
   G.set_color (G.rgb 100 100 150);
   G.fill_rect wall_x wall_y wall_width wall_height;
@@ -66,7 +66,68 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height =
            x1, y1, x2, y2
          with
          | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ())
-    |> Array.of_list)
+    |> Array.of_list);
+  (* Figure out where the mouse is in wall space and draw some info
+     text. *)
+  let mouse_x, mouse_y =
+    match mouse with
+    | None -> None, None
+    | Some (mouse_x, mouse_y) ->
+      if wall_x <= mouse_x
+         && mouse_x < wall_x + wall_width
+         && wall_y <= mouse_y
+         && mouse_y < wall_y + wall_height
+      then (
+        (* We round here because figure space coordinates are always integers. *)
+        let mouse_x =
+          Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
+        in
+        let mouse_y =
+          Bignum.( * ) (Bignum.of_int (mouse_y - wall_y)) scale |> Bignum.round ~dir:`Down
+        in
+        Some mouse_x, Some mouse_y)
+      else None, None
+  in
+  G.set_color G.white;
+  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 25);
+  G.draw_string
+    (sprintf !"Mouse X: %{Bignum#hum}" (Option.value mouse_x ~default:Bignum.zero));
+  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 40);
+  G.draw_string
+    (sprintf !"Mouse Y: %{Bignum#hum}" (Option.value mouse_y ~default:Bignum.zero));
+  (* Draw a yellow rectangle around the mouse's current "pixel" in
+     figure space. *)
+  G.set_color G.yellow;
+  let () =
+    match mouse_x, mouse_y with
+    | Some mouse_x, Some mouse_y ->
+      let mouse_x, mouse_y =
+        let x =
+          wall_x + (Bignum.(mouse_x / scale) |> Bignum.round |> Bignum.to_int_exn)
+        in
+        (* Note that we do NOT flip the y here. *)
+        let y =
+          wall_y + (Bignum.(mouse_y / scale) |> Bignum.round |> Bignum.to_int_exn)
+        in
+        x, y
+      in
+      let px =
+        let open Bignum in
+        round (one / scale) ~dir:`Nearest |> to_int_exn
+      in
+      G.draw_rect mouse_x mouse_y px px
+    | _ -> ()
+  in
+  ()
+;;
+
+(* Returns the mouse position, or [None] if it's outside the
+   screen. *)
+let get_mouse_pos () =
+  let mouse_x, mouse_y = G.mouse_pos () in
+  if mouse_x < 0 || mouse_x >= G.size_x () || mouse_y < 0 || mouse_y >= G.size_y ()
+  then None
+  else Some (mouse_x, mouse_y)
 ;;
 
 let rec interact ~prob =
@@ -76,28 +137,38 @@ let rec interact ~prob =
     ~wall_x:10
     ~wall_y:(G.size_y () - 30 - 700)
     ~wall_width:800
-    ~wall_height:700;
-  let status = G.wait_next_event [ G.Key_pressed ] in
-  match (status : G.status) with
-  | { keypressed = true; key = 'q' | '\027'; _ } -> print_endline "Quitting..."
-  | _ ->
-    printf
-      !"Ignoring input: %{sexp#mach: Sexp.t}\n%!"
-      [%sexp
-        { mouse_x : int = status.mouse_x
-        ; mouse_y : int = status.mouse_y
-        ; button : bool = status.button
-        ; keypressed : bool = status.keypressed
-        ; key : char = status.key
-        }];
+    ~wall_height:700
+    ~mouse:(get_mouse_pos ());
+  G.synchronize ();
+  (* let status = G.wait_next_event [ G.Key_pressed; G.Mouse_motion ] in
+   * printf
+   *   !"Input: %{sexp#mach: Sexp.t}\n%!"
+   *   [%sexp
+   *     { mouse_x : int = status.mouse_x
+   *     ; mouse_y : int = status.mouse_y
+   *     ; button : bool = status.button
+   *     ; keypressed : bool = status.keypressed
+   *     ; key : char = status.key
+   *     }]; *)
+  let shutting_down = ref false in
+  let () =
+    while G.key_pressed () do
+      match G.read_key () with
+      | 'q' | '\027' -> shutting_down := true
+      | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
+    done
+  in
+  if not !shutting_down
+  then (
     let (_ : float) = Unix.nanosleep 0.033 in
-    interact ~prob
+    interact ~prob)
 ;;
 
 let display ~filename =
   let prob = Problem.load_exn ~filename in
   G.open_graph " 1000x800";
   G.set_window_title "ICFPC 2021";
+  G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
   let () = interact ~prob in
   G.close_graph ()
