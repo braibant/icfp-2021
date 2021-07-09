@@ -29,12 +29,31 @@ let load_exn ~problem ~filename =
   let module J = Tiny_json.Json in
   let json = J.parse_ch (In_channel.create filename) in
   let vertices =
-    json
-    |> J.getf "figure"
-    |> J.getf "vertices"
-    |> Common.json_as_point_list ~what:"pose vertices"
+    json |> J.getf "vertices" |> Common.json_as_point_list ~what:"pose vertices"
   in
   set_vertices (create problem) vertices
+;;
+
+let save_exn t ~filename =
+  let module J = Tiny_json.Json in
+  let json =
+    J.Object
+      [ ( "vertices"
+        , J.Array
+            (Int.Map.to_alist t.vertices
+            |> List.map ~f:snd
+            |> List.map ~f:(fun (point : Point.t) ->
+                   J.Array
+                     [ J.Number (Bignum.to_string_hum point.x)
+                     ; J.Number (Bignum.to_string_hum point.y)
+                     ])) )
+      ]
+  in
+  let out = Out_channel.create filename in
+  let formatter = Format.formatter_of_out_channel out in
+  J.format formatter json;
+  Out_channel.flush out;
+  Out_channel.close out
 ;;
 
 let deformation_badness t edge curr_length =

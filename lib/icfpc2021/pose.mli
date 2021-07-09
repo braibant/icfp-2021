@@ -4,6 +4,7 @@ type t
 
 val create : Problem.t -> t
 val load_exn : problem:Problem.t -> filename:string -> t
+val save_exn : t -> filename:string -> unit
 val vertices : t -> Point.t list
 val problem : t -> Problem.t
 val set_vertices : t -> Point.t list -> t
