@@ -70,80 +70,7 @@ let draw_bottom_text ~wall_y ~bottom_text_count str =
   G.draw_string str
 ;;
 
-(* Draw the hole, figure, and various info.  Note that the coordinate
-   system is (0, 0) in the bottom left corner and growing rightwards
-   and upwards.
-
-   There are two coordinate systems here:
-   - figure space where coordinates are in [Bignum.t]s, and
-   - screen/wall space where coordinates are in [ints]
-
-   Graphics API: https://ocaml.github.io/graphics/graphics/Graphics/index.html
-*)
-let draw_problem
-    ~wall_x
-    ~wall_y
-    ~wall_width
-    ~wall_height
-    ~mouse
-    ~mouse_clicked
-    ~space_pressed
-    ~state
-  =
-  let prob = Pose.problem state.pose in
-  let wall_x, wall_y, wall_height, wall_width =
-    draw_wall ~wall_x ~wall_y ~wall_height ~wall_width
-  in
-  let scale = compute_scale ~prob ~wall_width ~wall_height in
-  let figure_to_wall_space Point.{ x; y } =
-    let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
-    let y =
-      wall_y
-      + wall_height
-      - (Bignum.((y + one) / scale) |> Bignum.round |> Bignum.to_int_exn)
-    in
-    x, y
-  in
-  (* One [px] is the size of one pixel in figure space converted to
-     wall space. This matters if the figure is being scaled up. *)
-  let px =
-    let open Bignum in
-    round (one / scale) ~dir:`Nearest |> to_int_exn
-  in
-  let draw_right_text =
-    let right_text_count = ref 0 in
-    fun str ->
-      draw_right_text ~wall_x ~wall_y ~wall_height ~wall_width ~right_text_count str
-  in
-  draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
-  (* Figure out where the mouse is in wall space and draw some info
-     text. *)
-  let mouse_x, mouse_y =
-    match mouse with
-    | None -> None, None
-    | Some (mouse_x, mouse_y) ->
-      if wall_x <= mouse_x
-         && mouse_x < wall_x + wall_width
-         && wall_y <= mouse_y
-         && mouse_y < wall_y + wall_height
-      then (
-        let mouse_x =
-          Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
-        in
-        let mouse_y =
-          Bignum.( - )
-            (Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale)
-            Bignum.one
-          |> Bignum.round ~dir:`Up
-        in
-        Some mouse_x, Some mouse_y)
-      else None, None
-  in
-  draw_right_text
-    (sprintf !"Mouse X: %{Bignum#hum}" (Option.value mouse_x ~default:Bignum.zero));
-  draw_right_text
-    (sprintf !"Mouse Y: %{Bignum#hum}" (Option.value mouse_y ~default:Bignum.zero));
-  (* See if we've selected a vertex. *)
+let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_pressed =
   let state =
     match mouse_clicked with
     | false ->
@@ -192,7 +119,87 @@ let draw_problem
         | None -> { state with selected_vertex = None }
         | Some idx -> { state with selected_vertex = Some idx }))
   in
-  let state = if space_pressed then { state with selected_vertex = None } else state in
+  if space_pressed then { state with selected_vertex = None } else state
+;;
+
+let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height =
+  match mouse with
+  | None -> None, None
+  | Some (mouse_x, mouse_y) ->
+    if wall_x <= mouse_x
+       && mouse_x < wall_x + wall_width
+       && wall_y <= mouse_y
+       && mouse_y < wall_y + wall_height
+    then (
+      let mouse_x =
+        Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
+      in
+      let mouse_y =
+        Bignum.( - )
+          (Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale)
+          Bignum.one
+        |> Bignum.round ~dir:`Up
+      in
+      Some mouse_x, Some mouse_y)
+    else None, None
+;;
+
+(* Draw the hole, figure, and various info.  Note that the coordinate
+   system is (0, 0) in the bottom left corner and growing rightwards
+   and upwards.
+
+   There are two coordinate systems here:
+   - figure space where coordinates are in [Bignum.t]s, and
+   - screen/wall space where coordinates are in [ints]
+
+   Graphics API: https://ocaml.github.io/graphics/graphics/Graphics/index.html
+*)
+let draw_problem
+    ~wall_x
+    ~wall_y
+    ~wall_width
+    ~wall_height
+    ~mouse
+    ~mouse_clicked
+    ~space_pressed
+    ~state
+  =
+  let prob = Pose.problem state.pose in
+  let wall_x, wall_y, wall_height, wall_width =
+    draw_wall ~wall_x ~wall_y ~wall_height ~wall_width
+  in
+  let scale = compute_scale ~prob ~wall_width ~wall_height in
+  let figure_to_wall_space Point.{ x; y } =
+    let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
+    let y =
+      wall_y
+      + wall_height
+      - (Bignum.((y + one) / scale) |> Bignum.round |> Bignum.to_int_exn)
+    in
+    x, y
+  in
+  (* One [px] is the size of one pixel in figure space converted to
+     wall space. This matters if the figure is being scaled up. *)
+  let px =
+    let open Bignum in
+    round (one / scale) ~dir:`Nearest |> to_int_exn
+  in
+  let draw_right_text =
+    let right_text_count = ref 0 in
+    fun str ->
+      draw_right_text ~wall_x ~wall_y ~wall_height ~wall_width ~right_text_count str
+  in
+  draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
+  let mouse_x, mouse_y =
+    mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
+  in
+  draw_right_text
+    (sprintf !"Mouse X: %{Bignum#hum}" (Option.value mouse_x ~default:Bignum.zero));
+  draw_right_text
+    (sprintf !"Mouse Y: %{Bignum#hum}" (Option.value mouse_y ~default:Bignum.zero));
+  let state =
+    update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_pressed
+  in
   draw_right_text
     (sprintf !"Selected vrtx: %d" (Option.value state.selected_vertex ~default:~-1));
   (* Draw the actual hole (scaled to the size of the wall). *)
