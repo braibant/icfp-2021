@@ -1,3 +1,8 @@
 (executable
  (name viz)
- (libraries core icfpc2021))
+ (libraries
+  core
+  graphics
+  icfpc2021
+  )
+ (preprocess (pps ppx_jane)))

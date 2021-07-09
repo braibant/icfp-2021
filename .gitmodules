@@ -1,0 +1,3 @@
+[submodule "external/ezjsonm"]
+	path = external/ezjsonm
+	url = git@github.com:mirage/ezjsonm.git

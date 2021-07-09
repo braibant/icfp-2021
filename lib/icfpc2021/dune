@@ -1,4 +1,8 @@
 (library
  (name icfpc2021)
- (libraries core)
+ (libraries
+  core
+  bignum
+  ezjsonm
+  )
  (preprocess (pps ppx_jane)))
