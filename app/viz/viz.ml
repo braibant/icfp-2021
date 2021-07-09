@@ -213,6 +213,12 @@ let draw_problem
       G.draw_rect mouse_x mouse_y px px
     | _ -> ()
   in
+  (* Help text *)
+  G.set_color G.white;
+  G.moveto 10 (wall_y - 20);
+  G.draw_string (sprintf !"Click to select vertex");
+  G.moveto 10 (wall_y - 35);
+  G.draw_string (sprintf !"Press SPACE to deselect vertex");
   state
 ;;
 
