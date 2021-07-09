@@ -14,7 +14,7 @@ let create problem =
   ; orig_lengths =
       List.map problem.figure_edges ~f:(fun (from_, to_) ->
           let from_p = List.nth_exn problem.figure_vertices from_ in
-          let to_p = List.nth_exn problem.figure_vertices from_ in
+          let to_p = List.nth_exn problem.figure_vertices to_ in
           (from_, to_), Point.distance from_p to_p)
       |> Int_int.Map.of_alist_exn
   }
@@ -36,7 +36,16 @@ let load_exn ~problem ~filename =
 
 let could_deform t edge curr_length =
   let orig_length = Map.find_exn t.orig_lengths edge in
-  Bignum.(abs ((curr_length / orig_length) - one) <= t.problem.epsilon / million)
+  let res =
+    Bignum.(abs ((curr_length / orig_length) - one) <= t.problem.epsilon / million)
+  in
+  eprintf
+    !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: %b\n%!"
+    edge
+    orig_length
+    curr_length
+    res;
+  res
 ;;
 
 let move t vertex ~to_:point =
