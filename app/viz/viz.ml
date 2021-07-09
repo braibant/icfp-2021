@@ -152,13 +152,20 @@ let draw_problem
           match mouse_x, mouse_y with
           | Some mouse_x, Some mouse_y ->
             let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
-            List.findi (Pose.vertices state.pose) ~f:(fun _idx v ->
-                Point.equal v mouse_point)
+            let selected_idx, _distance =
+              List.foldi
+                ~init:(-1, Bignum.million)
+                (Pose.vertices state.pose)
+                ~f:(fun idx (best, best_distance) v ->
+                  let d = Point.distance v mouse_point in
+                  if Bignum.(d < best_distance) then idx, d else best, best_distance)
+            in
+            Some selected_idx
           | _, _ -> None
         in
         (match res with
         | None -> { state with selected_vertex = None }
-        | Some (idx, _) -> { state with selected_vertex = Some idx }))
+        | Some idx -> { state with selected_vertex = Some idx }))
   in
   let state = if space_pressed then { state with selected_vertex = None } else state in
   G.set_color G.white;
