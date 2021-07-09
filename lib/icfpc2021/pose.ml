@@ -37,11 +37,11 @@ let load_exn ~problem ~filename =
   set_vertices (create problem) vertices
 ;;
 
-let could_deform t edge curr_length =
+let deformation_badness t edge curr_length =
   let orig_length = Map.find_exn t.orig_lengths edge in
   let off_from_one = Bignum.(abs ((curr_length / orig_length) - one)) in
   let tolerance = Bignum.(t.problem.epsilon / million) in
-  let res = Bignum.(off_from_one <= tolerance) in
+  let could_not = Bignum.(off_from_one <= tolerance) in
   eprintf
     !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
       %{Bignum#hum} => %b\n\
@@ -51,26 +51,21 @@ let could_deform t edge curr_length =
     curr_length
     off_from_one
     tolerance
-    res;
-  res
+    could_not;
+  if could_not then Some off_from_one else None
 ;;
 
 let move t vertex ~to_:point =
-  let edges =
-    (* all edges that start or end in point [vertex] *)
-    List.filter t.problem.figure_edges ~f:(fun (v1, v2) -> v1 = vertex || v2 = vertex)
-  in
-  let cur_p i =
-    (* current Point of vertex [i], taking into account requested move *)
-    if i = vertex then point else Map.find_exn t.vertices i
-  in
-  let possible =
-    List.for_all edges ~f:(fun edge ->
-        let from_, to_ = edge in
-        let new_length = Point.distance (cur_p from_) (cur_p to_) in
-        could_deform t edge new_length)
-  in
-  if possible then { t with vertices = Map.set t.vertices ~key:vertex ~data:point } else t
+  { t with vertices = Map.set t.vertices ~key:vertex ~data:point }
+;;
+
+let invalid_edges t =
+  List.filter_map t.problem.figure_edges ~f:(fun edge ->
+      let from_, to_ = edge in
+      let new_length =
+        Point.distance (Map.find_exn t.vertices from_) (Map.find_exn t.vertices to_)
+      in
+      Option.map (deformation_badness t edge new_length) ~f:(fun badness -> edge, badness))
 ;;
 
 let vertices t = Map.data t.vertices
