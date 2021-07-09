@@ -252,6 +252,8 @@ let draw_problem
   G.draw_string (sprintf !"Click to select vertex");
   G.moveto 10 (wall_y - 35);
   G.draw_string (sprintf !"Press SPACE to deselect vertex");
+  G.moveto 10 (wall_y - 50);
+  G.draw_string (sprintf !"Press s to save");
   state
 ;;
 
