@@ -34,7 +34,16 @@ open State
 
    Graphics API: https://ocaml.github.io/graphics/graphics/Graphics/index.html
 *)
-let draw_problem ~wall_x ~wall_y ~wall_width ~wall_height ~mouse ~mouse_clicked ~state =
+let draw_problem
+    ~wall_x
+    ~wall_y
+    ~wall_width
+    ~wall_height
+    ~mouse
+    ~mouse_clicked
+    ~space_pressed
+    ~state
+  =
   let prob = Pose.problem state.pose in
   (* Draw a blue border around the wall. *)
   G.set_color (G.rgb 100 100 150);
@@ -120,14 +129,24 @@ let draw_problem ~wall_x ~wall_y ~wall_width ~wall_height ~mouse ~mouse_clicked 
           (match mouse_x, mouse_y with
           | Some mouse_x, Some mouse_y ->
             let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
-            let pose = Pose.move state.pose selected_vertex ~to_:mouse_point in
-            { state with pose }
+            if Point.equal
+                 mouse_point
+                 (List.nth_exn (Pose.vertices state.pose) selected_vertex)
+            then state
+            else (
+              let pose = Pose.move state.pose selected_vertex ~to_:mouse_point in
+              { state with pose })
           | _, _ -> state)
       in
       state
     | true ->
       (match state.selected_vertex with
-      | Some _ -> { state with selected_vertex = None }
+      | Some _ ->
+        (* { state with selected_vertex = None } *)
+        (* We only unselect when space is pressed.  Without this, the
+            selection state flickers and it's annoying to fix in a
+            better way. *)
+        state
       | None ->
         let res =
           match mouse_x, mouse_y with
@@ -141,6 +160,7 @@ let draw_problem ~wall_x ~wall_y ~wall_width ~wall_height ~mouse ~mouse_clicked 
         | None -> { state with selected_vertex = None }
         | Some (idx, _) -> { state with selected_vertex = Some idx }))
   in
+  let state = if space_pressed then { state with selected_vertex = None } else state in
   G.set_color G.white;
   G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 55);
   G.draw_string
@@ -206,6 +226,16 @@ let get_mouse_pos () =
 ;;
 
 let rec interact ~state =
+  let shutting_down = ref false in
+  let space_pressed = ref false in
+  let () =
+    while G.key_pressed () do
+      match G.read_key () with
+      | 'q' | '\027' -> shutting_down := true
+      | ' ' -> space_pressed := true
+      | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
+    done
+  in
   draw_bg ();
   let state =
     draw_problem
@@ -215,17 +245,10 @@ let rec interact ~state =
       ~wall_height:700
       ~mouse:(get_mouse_pos ())
       ~mouse_clicked:(G.button_down ())
+      ~space_pressed:!space_pressed
       ~state
   in
   G.synchronize ();
-  let shutting_down = ref false in
-  let () =
-    while G.key_pressed () do
-      match G.read_key () with
-      | 'q' | '\027' -> shutting_down := true
-      | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
-    done
-  in
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
