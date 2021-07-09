@@ -23,7 +23,8 @@ let draw_bg () =
 
    Graphics API: https://ocaml.github.io/graphics/graphics/Graphics/index.html
 *)
-let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
+let draw_problem ~pose ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
+  let prob = Pose.problem pose in
   (* Draw a blue border around the wall. *)
   G.set_color (G.rgb 100 100 150);
   G.fill_rect wall_x wall_y wall_width wall_height;
@@ -86,8 +87,8 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
     |> List.map ~f:(fun ((x1, y1), (x2, y2)) -> x1, y1, x2, y2)
     |> Array.of_list);
   (* Draw the red stick figure. *)
-  let scaled_vertices =
-    prob.figure_vertices
+  let scaled_pose_vertices =
+    Pose.vertices pose
     |> List.map ~f:figure_to_wall_space
     |> List.map ~f:(fun (x, y) ->
            (* Center the vertex into the "pixel". *)
@@ -98,8 +99,8 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height ~mouse =
   G.draw_segments
     (List.map prob.figure_edges ~f:(fun (idx1, idx2) ->
          try
-           let x1, y1 = scaled_vertices.(idx1) in
-           let x2, y2 = scaled_vertices.(idx2) in
+           let x1, y1 = scaled_pose_vertices.(idx1) in
+           let x2, y2 = scaled_pose_vertices.(idx2) in
            x1, y1, x2, y2
          with
          | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ())
@@ -157,10 +158,10 @@ let get_mouse_pos () =
   else Some (mouse_x, mouse_y)
 ;;
 
-let rec interact ~prob =
+let rec interact ~pose =
   draw_bg ();
   draw_problem
-    ~prob
+    ~pose
     ~wall_x:10
     ~wall_y:(G.size_y () - 30 - 700)
     ~wall_width:800
@@ -188,16 +189,21 @@ let rec interact ~prob =
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
-    interact ~prob)
+    interact ~pose)
 ;;
 
-let display ~filename =
+let display ~filename ~answer =
   let prob = Problem.load_exn ~filename in
+  let pose =
+    match answer with
+    | None -> Pose.create prob
+    | Some filename -> Pose.load_exn ~problem:prob ~filename
+  in
   G.open_graph " 1000x800";
   G.set_window_title "ICFPC 2021";
   G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
-  let () = interact ~prob in
+  let () = interact ~pose in
   G.close_graph ()
 ;;
 
@@ -208,15 +214,11 @@ let commands =
     [ ( "display"
       , Command.basic
           ~summary:"Display a problem"
-          (let%map_open filename =
-             anon ("FILE" %: Filename.arg_type)
-             (* and api_key =
-              *   flag
-              *     "-api-key"
-              *     (required string)
-              *     ~doc:"API-KEY API-KEY for identifying with the server" *)
+          (let%map_open filename = anon ("FILE" %: Filename.arg_type)
+           and answer =
+             flag "-answer" (optional string) ~doc:"FILE File containing an answer"
            in
-           fun () -> display ~filename) )
+           fun () -> display ~filename ~answer) )
     ]
 ;;
 
