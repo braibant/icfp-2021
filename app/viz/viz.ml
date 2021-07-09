@@ -199,7 +199,7 @@ let draw_problem
            x + (px / 2), y + (px / 2))
     |> Array.of_list
   in
-  G.set_color G.red;
+  G.set_color (G.rgb 100 175 100);
   G.draw_segments
     (List.map prob.figure_edges ~f:(fun (idx1, idx2) ->
          try
@@ -209,6 +209,21 @@ let draw_problem
          with
          | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ())
     |> Array.of_list);
+  List.iter (Pose.invalid_edges state.pose) ~f:(fun ((idx1, idx2), off) ->
+      let wrongness =
+        let open Bignum in
+        to_float (off - (prob.epsilon / of_int 1000000))
+      in
+      let wrongness = Float.max 0.0 wrongness |> Float.min 1.0 in
+      printf "wrongness: %.2f\n%!" wrongness;
+      let redness = 50 + Float.to_int (205. *. wrongness) in
+      G.set_color (G.rgb redness 50 50);
+      try
+        let x1, y1 = scaled_pose_vertices.(idx1) in
+        let x2, y2 = scaled_pose_vertices.(idx2) in
+        G.draw_segments [| x1, y1, x2, y2 |]
+      with
+      | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ());
   G.set_line_width 1;
   (* Draw a yellow rectangle around the mouse's current "pixel" in
      figure space. *)
