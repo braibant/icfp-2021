@@ -264,17 +264,26 @@ let get_mouse_pos () =
   else Some (mouse_x, mouse_y)
 ;;
 
-let rec interact ~state =
+let rec interact ~state ~answer_filename =
   let shutting_down = ref false in
   let space_pressed = ref false in
+  let s_pressed = ref false in
   let () =
     while G.key_pressed () do
       match G.read_key () with
       | 'q' | '\027' -> shutting_down := true
       | ' ' -> space_pressed := true
+      | 's' -> s_pressed := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
+  if !s_pressed
+  then (
+    Pose.save_exn state.pose ~filename:answer_filename;
+    printf "Saved answer to %s!\n%!" answer_filename;
+    let invalid_edges = Pose.invalid_edges state.pose in
+    if List.length invalid_edges > 0
+    then printf "WARNING: Invalid edges: %d\n%!" (List.length invalid_edges));
   draw_bg ();
   let state =
     draw_problem
@@ -291,21 +300,26 @@ let rec interact ~state =
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
-    interact ~state)
+    interact ~state ~answer_filename)
 ;;
 
-let display ~filename ~answer =
+let display ~filename ~answer_filename =
   let prob = Problem.load_exn ~filename in
   let pose =
-    match answer with
+    match answer_filename with
     | None -> Pose.create prob
-    | Some filename -> Pose.load_exn ~problem:prob ~filename
+    | Some answer_filename -> Pose.load_exn ~problem:prob ~filename:answer_filename
+  in
+  let answer_filename =
+    match answer_filename with
+    | Some answer_filename -> answer_filename
+    | None -> Filename.chop_extension filename ^ ".answer.json"
   in
   G.open_graph " 1000x800";
   G.set_window_title "ICFPC 2021";
   G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
-  let () = interact ~state:(State.create ~pose) in
+  let () = interact ~state:(State.create ~pose) ~answer_filename in
   G.close_graph ()
 ;;
 
@@ -317,10 +331,10 @@ let commands =
       , Command.basic
           ~summary:"Display a problem"
           (let%map_open filename = anon ("FILE" %: Filename.arg_type)
-           and answer =
+           and answer_filename =
              flag "-answer" (optional string) ~doc:"FILE File containing an answer"
            in
-           fun () -> display ~filename ~answer) )
+           fun () -> display ~filename ~answer_filename) )
     ]
 ;;
 

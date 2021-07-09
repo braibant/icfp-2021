@@ -29,12 +29,31 @@ let load_exn ~problem ~filename =
   let module J = Tiny_json.Json in
   let json = J.parse_ch (In_channel.create filename) in
   let vertices =
-    json
-    |> J.getf "figure"
-    |> J.getf "vertices"
-    |> Common.json_as_point_list ~what:"pose vertices"
+    json |> J.getf "vertices" |> Common.json_as_point_list ~what:"pose vertices"
   in
   set_vertices (create problem) vertices
+;;
+
+let save_exn t ~filename =
+  let module J = Tiny_json.Json in
+  let json =
+    J.Object
+      [ ( "vertices"
+        , J.Array
+            (Int.Map.to_alist t.vertices
+            |> List.map ~f:snd
+            |> List.map ~f:(fun (point : Point.t) ->
+                   J.Array
+                     [ J.Number (Bignum.to_string_hum point.x)
+                     ; J.Number (Bignum.to_string_hum point.y)
+                     ])) )
+      ]
+  in
+  let out = Out_channel.create filename in
+  let formatter = Format.formatter_of_out_channel out in
+  J.format formatter json;
+  Format.pp_print_flush formatter ();
+  Out_channel.close out
 ;;
 
 let deformation_badness t edge curr_length =
@@ -42,16 +61,16 @@ let deformation_badness t edge curr_length =
   let off_from_one = Bignum.(abs ((curr_length / orig_length) - one)) in
   let tolerance = Bignum.(t.problem.epsilon / million) in
   let could_not = Bignum.(off_from_one > tolerance) in
-  eprintf
-    !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
-      %{Bignum#hum} => %b\n\
-      %!"
-    edge
-    orig_length
-    curr_length
-    off_from_one
-    tolerance
-    could_not;
+  (* eprintf
+   *   !"%{sexp:int*int}: %{Bignum#hum} -> %{Bignum#hum}: OFF BY %{Bignum#hum}, TOL \
+   *     %{Bignum#hum} => %b\n\
+   *     %!"
+   *   edge
+   *   orig_length
+   *   curr_length
+   *   off_from_one
+   *   tolerance
+   *   could_not; *)
   if could_not then Some off_from_one else None
 ;;
 
