@@ -246,6 +246,40 @@ let draw_problem
       G.draw_rect point_x point_y px px
     | None -> ()
   in
+  (* Draw circles around the vertices connected to the selected vertex
+     for how long their edges can be. *)
+  let length_to_wall_space len =
+    let open Bignum in
+    len * scale |> Bignum.round |> Bignum.to_int_exn
+  in
+  G.set_color G.yellow;
+  let () =
+    match state.selected_vertex with
+    | Some selected_vertex ->
+      let connected_points =
+        List.filter_map prob.figure_edges ~f:(fun ((idx1, idx2) as edge) ->
+            if idx1 = selected_vertex
+            then Some (idx2, Pose.min_max_length_for_edge state.pose edge)
+            else if idx2 = selected_vertex
+            then Some (idx1, Pose.min_max_length_for_edge state.pose edge)
+            else None)
+      in
+      List.iter connected_points ~f:(fun (point_idx, (min_edge, max_edge)) ->
+          let point_x, point_y =
+            figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) point_idx)
+          in
+          printf
+            !"Connected point: %d %d; %{Bignum#hum}/%{Bignum#hum} => %d/%d\n%!"
+            point_x
+            point_y
+            min_edge
+            max_edge
+            (length_to_wall_space min_edge)
+            (length_to_wall_space max_edge);
+          G.draw_circle point_x point_y (length_to_wall_space min_edge);
+          G.draw_circle point_x point_y (length_to_wall_space max_edge))
+    | None -> ()
+  in
   (* Help text *)
   G.set_color G.white;
   G.moveto 10 (wall_y - 20);
