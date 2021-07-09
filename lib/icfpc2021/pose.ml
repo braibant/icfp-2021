@@ -74,7 +74,7 @@ let deformation_badness t edge curr_length =
   if could_not then Some off_from_one else None
 ;;
 
-let min_max_length_for_edge t edge =
+let min_max_length_sq_for_edge t edge =
   let orig_length = Map.find_exn t.orig_lengths edge in
   let tolerance = Bignum.(t.problem.epsilon / million) in
   Bignum.(orig_length - tolerance, orig_length + tolerance)

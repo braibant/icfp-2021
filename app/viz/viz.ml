@@ -248,9 +248,10 @@ let draw_problem
   in
   (* Draw circles around the vertices connected to the selected vertex
      for how long their edges can be. *)
-  let length_to_wall_space len =
+  let length_sq_to_wall_space len =
+    let len = Float.sqrt (Bignum.to_float len) |> Bignum.of_float_dyadic in
     let open Bignum in
-    len * scale |> Bignum.round |> Bignum.to_int_exn
+    len / scale |> Bignum.round |> Bignum.to_int_exn
   in
   G.set_color G.yellow;
   let () =
@@ -259,12 +260,12 @@ let draw_problem
       let connected_points =
         List.filter_map prob.figure_edges ~f:(fun ((idx1, idx2) as edge) ->
             if idx1 = selected_vertex
-            then Some (idx2, Pose.min_max_length_for_edge state.pose edge)
+            then Some (idx2, Pose.min_max_length_sq_for_edge state.pose edge)
             else if idx2 = selected_vertex
-            then Some (idx1, Pose.min_max_length_for_edge state.pose edge)
+            then Some (idx1, Pose.min_max_length_sq_for_edge state.pose edge)
             else None)
       in
-      List.iter connected_points ~f:(fun (point_idx, (min_edge, max_edge)) ->
+      List.iter connected_points ~f:(fun (point_idx, (min_edge_sq, max_edge_sq)) ->
           let point_x, point_y =
             figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) point_idx)
           in
@@ -272,12 +273,12 @@ let draw_problem
             !"Connected point: %d %d; %{Bignum#hum}/%{Bignum#hum} => %d/%d\n%!"
             point_x
             point_y
-            min_edge
-            max_edge
-            (length_to_wall_space min_edge)
-            (length_to_wall_space max_edge);
-          G.draw_circle point_x point_y (length_to_wall_space min_edge);
-          G.draw_circle point_x point_y (length_to_wall_space max_edge))
+            min_edge_sq
+            max_edge_sq
+            (length_sq_to_wall_space min_edge_sq)
+            (length_sq_to_wall_space max_edge_sq);
+          G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
+          G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq))
     | None -> ()
   in
   (* Help text *)
