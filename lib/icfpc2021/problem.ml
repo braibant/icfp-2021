@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { hole : Point.t list
-  ; figure_edges : Point.t list (* CR scvalex: This should be a list of points. *)
+  ; figure_edges : (int * int) list
   ; figure_vertices : Point.t list
   ; epsilon : Bignum.t
   }
@@ -15,7 +15,7 @@ let json_as_bigint x =
     failwith "json_as_bigint: Expected string or number"
 ;;
 
-let json_as_bignum_pair_list json ~what =
+let json_as_point_list json ~what =
   let module J = Tiny_json.Json in
   json
   |> J.as_list
@@ -25,22 +25,32 @@ let json_as_bignum_pair_list json ~what =
          | _ -> failwithf "Parsing %s: expected list of pairs" what ())
 ;;
 
+let json_as_int_pair_list json ~what =
+  let module J = Tiny_json.Json in
+  json
+  |> J.as_list
+  |> List.map ~f:(fun j ->
+         match J.as_list j with
+         | [ x; y ] -> J.as_int x, J.as_int y
+         | _ -> failwithf "Parsing %s: expected list of pairs" what ())
+;;
+
 let load_exn ~filename =
   let module J = Tiny_json.Json in
   let json = J.parse_ch (In_channel.create filename) in
   let epsilon = json |> J.getf "epsilon" |> json_as_bigint in
-  let hole = json |> J.getf "hole" |> json_as_bignum_pair_list ~what:"hole" in
+  let hole = json |> J.getf "hole" |> json_as_point_list ~what:"hole" in
   let figure_edges =
     json
     |> J.getf "figure"
     |> J.getf "edges"
-    |> json_as_bignum_pair_list ~what:"figure edges"
+    |> json_as_int_pair_list ~what:"figure edges"
   in
   let figure_vertices =
     json
     |> J.getf "figure"
     |> J.getf "vertices"
-    |> json_as_bignum_pair_list ~what:"figure vertices"
+    |> json_as_point_list ~what:"figure vertices"
   in
   { hole; figure_edges; figure_vertices; epsilon }
 ;;
@@ -50,10 +60,7 @@ let max_xy t =
     List.fold_left points ~init:(max_x, max_y) ~f:(fun (max_x, max_y) Point.{ x; y } ->
         Bignum.max max_x x, Bignum.max max_y y)
   in
-  (Bignum.zero, Bignum.zero)
-  |> fold_to_max t.hole
-  |> fold_to_max t.figure_edges
-  |> fold_to_max t.figure_vertices
+  (Bignum.zero, Bignum.zero) |> fold_to_max t.hole |> fold_to_max t.figure_vertices
 ;;
 
 let to_string_hum t =

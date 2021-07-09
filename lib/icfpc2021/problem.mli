@@ -2,7 +2,7 @@ open! Core
 
 type t =
   { hole : Point.t list
-  ; figure_edges : Point.t list
+  ; figure_edges : (int * int) list
   ; figure_vertices : Point.t list
   ; epsilon : Bignum.t
   }
