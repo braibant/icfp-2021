@@ -24,6 +24,52 @@ end
 
 open State
 
+let draw_wall ~wall_x ~wall_y ~wall_width ~wall_height =
+  (* Draw a blue border around the wall. *)
+  G.set_color (G.rgb 100 100 150);
+  G.fill_rect wall_x wall_y wall_width wall_height;
+  (* Make the wall smaller by the size of the border. *)
+  let wall_y = wall_y + 4 in
+  let wall_x = wall_x + 4 in
+  let wall_height = wall_height - 8 in
+  let wall_width = wall_width - 8 in
+  (* Draw the wall grey background. *)
+  G.set_color (G.rgb 100 100 100);
+  G.fill_rect wall_x wall_y wall_width wall_height;
+  wall_x, wall_y, wall_height, wall_width
+;;
+
+let compute_scale ~prob ~wall_width ~wall_height =
+  let max_x, max_y = Problem.max_xy prob in
+  let scale_x =
+    let open Bignum in
+    let wall_width = of_int wall_width in
+    (max_x + Bignum.one) / wall_width
+  in
+  let scale_y =
+    let open Bignum in
+    let wall_height = of_int wall_height in
+    (max_y + Bignum.one) / wall_height
+  in
+  Bignum.max scale_x scale_y
+;;
+
+let draw_right_text ~wall_x ~wall_y ~wall_width ~wall_height ~right_text_count str =
+  G.moveto
+    (wall_x + wall_width + 10)
+    (wall_y + wall_height - 10 - (15 * !right_text_count));
+  incr right_text_count;
+  G.set_color G.white;
+  G.draw_string str
+;;
+
+let draw_bottom_text ~wall_y ~bottom_text_count str =
+  G.set_color G.white;
+  G.moveto 10 (wall_y - 20 - (15 * !bottom_text_count));
+  incr bottom_text_count;
+  G.draw_string str
+;;
+
 (* Draw the hole, figure, and various info.  Note that the coordinate
    system is (0, 0) in the bottom left corner and growing rightwards
    and upwards.
@@ -45,30 +91,10 @@ let draw_problem
     ~state
   =
   let prob = Pose.problem state.pose in
-  (* Draw a blue border around the wall. *)
-  G.set_color (G.rgb 100 100 150);
-  G.fill_rect wall_x wall_y wall_width wall_height;
-  (* Make the wall smaller by the size of the border. *)
-  let wall_y = wall_y + 4 in
-  let wall_x = wall_x + 4 in
-  let wall_height = wall_height - 8 in
-  let wall_width = wall_width - 8 in
-  (* Draw the wall grey background. *)
-  G.set_color (G.rgb 100 100 100);
-  G.fill_rect wall_x wall_y wall_width wall_height;
-  (* Figure out the scaling for the problem points. *)
-  let max_x, max_y = Problem.max_xy prob in
-  let scale_x =
-    let open Bignum in
-    let wall_width = of_int wall_width in
-    (max_x + Bignum.one) / wall_width
+  let wall_x, wall_y, wall_height, wall_width =
+    draw_wall ~wall_x ~wall_y ~wall_height ~wall_width
   in
-  let scale_y =
-    let open Bignum in
-    let wall_height = of_int wall_height in
-    (max_y + Bignum.one) / wall_height
-  in
-  let scale = Bignum.max scale_x scale_y in
+  let scale = compute_scale ~prob ~wall_width ~wall_height in
   let figure_to_wall_space Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
     let y =
@@ -84,10 +110,12 @@ let draw_problem
     let open Bignum in
     round (one / scale) ~dir:`Nearest |> to_int_exn
   in
-  (* Draw some info text. *)
-  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 10);
-  G.set_color G.white;
-  G.draw_string (sprintf !"Scale: %{Bignum#hum}" scale);
+  let draw_right_text =
+    let right_text_count = ref 0 in
+    fun str ->
+      draw_right_text ~wall_x ~wall_y ~wall_height ~wall_width ~right_text_count str
+  in
+  draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
   (* Figure out where the mouse is in wall space and draw some info
      text. *)
   let mouse_x, mouse_y =
@@ -111,12 +139,9 @@ let draw_problem
         Some mouse_x, Some mouse_y)
       else None, None
   in
-  G.set_color G.white;
-  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 25);
-  G.draw_string
+  draw_right_text
     (sprintf !"Mouse X: %{Bignum#hum}" (Option.value mouse_x ~default:Bignum.zero));
-  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 40);
-  G.draw_string
+  draw_right_text
     (sprintf !"Mouse Y: %{Bignum#hum}" (Option.value mouse_y ~default:Bignum.zero));
   (* See if we've selected a vertex. *)
   let state =
@@ -168,9 +193,7 @@ let draw_problem
         | Some idx -> { state with selected_vertex = Some idx }))
   in
   let state = if space_pressed then { state with selected_vertex = None } else state in
-  G.set_color G.white;
-  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 55);
-  G.draw_string
+  draw_right_text
     (sprintf !"Selected vrtx: %d" (Option.value state.selected_vertex ~default:~-1));
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
@@ -269,26 +292,18 @@ let draw_problem
           let point_x, point_y =
             figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) point_idx)
           in
-          printf
-            !"Connected point: %d %d; %{Bignum#hum}/%{Bignum#hum} => %d/%d\n%!"
-            point_x
-            point_y
-            min_edge_sq
-            max_edge_sq
-            (length_sq_to_wall_space min_edge_sq)
-            (length_sq_to_wall_space max_edge_sq);
           G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
           G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq))
     | None -> ()
   in
   (* Help text *)
-  G.set_color G.white;
-  G.moveto 10 (wall_y - 20);
-  G.draw_string (sprintf !"Click to select vertex");
-  G.moveto 10 (wall_y - 35);
-  G.draw_string (sprintf !"Press SPACE to deselect vertex");
-  G.moveto 10 (wall_y - 50);
-  G.draw_string (sprintf !"Press s to save");
+  let draw_bottom_text =
+    let bottom_text_count = ref 0 in
+    fun str -> draw_bottom_text ~wall_y ~bottom_text_count str
+  in
+  draw_bottom_text (sprintf !"Click to select vertex");
+  draw_bottom_text (sprintf !"Press SPACE to deselect vertex");
+  draw_bottom_text (sprintf !"Press s to save");
   state
 ;;
 
