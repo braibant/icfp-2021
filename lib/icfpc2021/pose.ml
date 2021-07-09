@@ -8,8 +8,6 @@ type t =
   }
 [@@deriving fields]
 
-let current_point t vertex = List.nth_exn t.vertices vertex
-
 let create problem =
   { problem
   ; vertices = problem.figure_vertices
@@ -48,7 +46,7 @@ let move t vertex ~to_:point =
   in
   let cur_p i =
     (* current Point of vertex [i], taking into account requested move *)
-    if i = vertex then point else current_point t vertex
+    if i = vertex then point else List.nth_exn t.vertices i
   in
   let possible =
     List.for_all edges ~f:(fun edge ->
