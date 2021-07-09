@@ -213,6 +213,17 @@ let draw_problem
       G.draw_rect mouse_x mouse_y px px
     | _ -> ()
   in
+  (* Draw a green rectangle around the selected vertex. *)
+  G.set_color G.green;
+  let () =
+    match state.selected_vertex with
+    | Some selected_vertex ->
+      let point_x, point_y =
+        figure_to_wall_space (List.nth_exn (Pose.vertices state.pose) selected_vertex)
+      in
+      G.draw_rect point_x point_y px px
+    | None -> ()
+  in
   (* Help text *)
   G.set_color G.white;
   G.moveto 10 (wall_y - 20);
