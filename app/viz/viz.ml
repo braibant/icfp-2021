@@ -213,7 +213,7 @@ let draw_problem
   List.iter (Pose.invalid_edges state.pose) ~f:(fun ((idx1, idx2), off) ->
       let wrongness =
         let open Bignum in
-        to_float (off - (prob.epsilon / of_int 1000000))
+        to_float (off - (prob.epsilon / million))
       in
       let wrongness = Float.max 0.0 wrongness |> Float.min 1.0 in
       let redness = 100 + Float.to_int (155. *. wrongness) in
