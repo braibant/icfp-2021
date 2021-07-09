@@ -13,18 +13,21 @@ let draw_bg () =
   G.draw_string "ICFP 2021"
 ;;
 
+(* Draw the hole, figure, and various info.  Note that the coordinate
+   system is (0, 0) in the bottom left corner and growing rightwards
+   and upwards. *)
 let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height =
   (* Draw a blue border around the wall. *)
   G.set_color (G.rgb 100 100 150);
-  G.fill_rect wall_x (wall_y - wall_height) wall_width wall_height;
+  G.fill_rect wall_x wall_y wall_width wall_height;
   (* Make the wall smaller by the size of the border. *)
-  let wall_y = wall_y - 4 in
+  let wall_y = wall_y + 4 in
   let wall_x = wall_x + 4 in
   let wall_height = wall_height - 8 in
   let wall_width = wall_width - 8 in
   (* Draw the wall grey background. *)
   G.set_color (G.rgb 200 200 200);
-  G.fill_rect wall_x (wall_y - wall_height) wall_width wall_height;
+  G.fill_rect wall_x wall_y wall_width wall_height;
   (* Figure out the scaling for the problem points. *)
   let max_x, max_y = Problem.max_xy prob in
   let scale_x =
@@ -41,12 +44,12 @@ let draw_problem ~prob ~wall_x ~wall_y ~wall_width ~wall_height =
   let scale_point Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
     let y =
-      wall_y - wall_height + (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn)
+      wall_y + wall_height - (Bignum.(y / scale) |> Bignum.round |> Bignum.to_int_exn)
     in
     x, y
   in
   (* Draw some info text. *)
-  G.moveto (wall_x + wall_width + 10) (wall_y - 10);
+  G.moveto (wall_x + wall_width + 10) (wall_y + wall_height - 10);
   G.set_color G.white;
   G.draw_string (sprintf !"Scale: %{Bignum#hum}" scale);
   (* Draw the actual hole (scaled to the size of the wall). *)
@@ -71,7 +74,7 @@ let rec interact ~prob =
   draw_problem
     ~prob
     ~wall_x:10
-    ~wall_y:(G.size_y () - 30)
+    ~wall_y:(G.size_y () - 30 - 700)
     ~wall_width:800
     ~wall_height:700;
   let status = G.wait_next_event [ G.Key_pressed ] in
