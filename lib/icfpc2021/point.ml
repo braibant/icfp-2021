@@ -7,3 +7,4 @@ type t =
 [@@deriving fields, sexp]
 
 let create = Fields.create
+let distance a b = Bignum.(((a.x - b.x) ** 2) + ((a.y - b.y) ** 2))
