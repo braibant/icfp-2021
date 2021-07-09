@@ -8,11 +8,39 @@ type t =
   }
 [@@deriving sexp]
 
+let json_as_bigint x =
+  match (x : Tiny_json.Json.t) with
+  | String str | Number str -> Bignum.of_string str
+  | Object _ | Array _ | Bool _ | Null ->
+    failwith "json_as_bigint: Expected string or number"
+;;
+
+let json_as_bignum_pair_list json ~what =
+  let module J = Tiny_json.Json in
+  json
+  |> J.as_list
+  |> List.map ~f:(fun j ->
+         match J.as_list j with
+         | [ x; y ] -> Point.create ~x:(json_as_bigint x) ~y:(json_as_bigint y)
+         | _ -> failwithf "Parsing %s: expected list of pairs" what ())
+;;
+
 let load_exn ~filename =
-  let module J = Ezjsonm in
-  let x = J.from_channel (In_channel.create filename) in
-  (* print_endline (Sexp.to_string_hum (J.sexp_of_t x)); *)
-  let epsilon = J.find x [ "epsilon" ] |> J.value_to_string in
-  print_endline epsilon;
-  { hole = []; figure_edges = []; figure_vertices = []; epsilon = Bignum.zero }
+  let module J = Tiny_json.Json in
+  let json = J.parse_ch (In_channel.create filename) in
+  let epsilon = json |> J.getf "epsilon" |> json_as_bigint in
+  let hole = json |> J.getf "hole" |> json_as_bignum_pair_list ~what:"hole" in
+  let figure_edges =
+    json
+    |> J.getf "figure"
+    |> J.getf "edges"
+    |> json_as_bignum_pair_list ~what:"figure edges"
+  in
+  let figure_vertices =
+    json
+    |> J.getf "figure"
+    |> J.getf "vertices"
+    |> json_as_bignum_pair_list ~what:"figure vertices"
+  in
+  { hole; figure_edges; figure_vertices; epsilon }
 ;;

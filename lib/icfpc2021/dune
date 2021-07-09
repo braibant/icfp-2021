@@ -3,6 +3,6 @@
  (libraries
   core
   bignum
-  ezjsonm
+  tiny_json
   )
  (preprocess (pps ppx_jane)))

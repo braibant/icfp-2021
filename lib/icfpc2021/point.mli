@@ -4,4 +4,6 @@ type t =
   { x : Bignum.t
   ; y : Bignum.t
   }
-[@@deriving sexp]
+[@@deriving fields, sexp]
+
+val create : x:Bignum.t -> y:Bignum.t -> t
