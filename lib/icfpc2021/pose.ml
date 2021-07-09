@@ -3,14 +3,15 @@ module Int_int = Tuple.Comparable (Int) (Int)
 
 type t =
   { problem : Problem.t
-  ; vertices : Point.t list
+  ; vertices : Point.t Int.Map.t
   ; orig_lengths : Bignum.t Int_int.Map.t
   }
 [@@deriving fields]
 
 let create problem =
   { problem
-  ; vertices = problem.figure_vertices
+  ; vertices =
+      List.mapi problem.figure_vertices ~f:(fun i p -> i, p) |> Int.Map.of_alist_exn
   ; orig_lengths =
       List.map problem.figure_edges ~f:(fun (from_, to_) ->
           let from_p = List.nth_exn problem.figure_vertices from_ in
@@ -20,7 +21,9 @@ let create problem =
   }
 ;;
 
-let set_vertices t vertices = { t with vertices }
+let set_vertices t vertices =
+  { t with vertices = List.mapi vertices ~f:(fun i p -> i, p) |> Int.Map.of_alist_exn }
+;;
 
 let load_exn ~problem ~filename =
   let module J = Tiny_json.Json in
@@ -59,7 +62,7 @@ let move t vertex ~to_:point =
   in
   let cur_p i =
     (* current Point of vertex [i], taking into account requested move *)
-    if i = vertex then point else List.nth_exn t.vertices i
+    if i = vertex then point else Map.find_exn t.vertices i
   in
   let possible =
     List.for_all edges ~f:(fun edge ->
@@ -67,10 +70,7 @@ let move t vertex ~to_:point =
         let new_length = Point.distance (cur_p from_) (cur_p to_) in
         could_deform t edge new_length)
   in
-  if possible
-  then
-    { t with
-      vertices = List.mapi t.vertices ~f:(fun i p -> if i = vertex then point else p)
-    }
-  else t
+  if possible then { t with vertices = Map.set t.vertices ~key:vertex ~data:point } else t
 ;;
+
+let vertices t = Map.data t.vertices
