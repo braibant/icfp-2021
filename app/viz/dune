@@ -1,6 +1,7 @@
 (executable
  (name viz)
  (libraries
+  bignum
   core
   graphics
   icfpc2021
