@@ -137,6 +137,7 @@ let dislikes t = dislikes_per_hole_vertex t |> Array.sum (module Int) ~f:Fn.id
 let find_pose_edge_that_matches_hole_edge t =
   (* go over all hole edges, looking for pose edges that will fit there. 
      If only one such fit found, return it *)
+  let res = Queue.create () in
   for i = 0 to Array.length t.hole_polygon - 1 do
     let prev = if i = 0 then Array.length t.hole_polygon - 1 else i - 1 in
     let hole_from_p = t.hole_polygon.(prev) in
@@ -148,20 +149,20 @@ let find_pose_edge_that_matches_hole_edge t =
           | None -> Some edge
           | Some _ -> None)
     in
-    match matching_edges with
-    | [ (from_, to_) ] ->
-      let from_p = Map.find_exn t.vertices from_ in
-      let to_p = Map.find_exn t.vertices to_ in
-      printf
-        !"HOLE EDGE %{sexp:Point.t} to %{sexp:Point.t} MATCHES %{sexp:Point.t} \
-          %{sexp:Point.t}\n\
-          %!"
-        hole_from_p
-        hole_to_p
-        from_p
-        to_p
-    | _ -> ()
-  done
+    List.iter matching_edges ~f:(fun (from_, to_) ->
+        Queue.enqueue res ((hole_from_p, hole_to_p), (from_, to_));
+        let from_p = Map.find_exn t.vertices from_ in
+        let to_p = Map.find_exn t.vertices to_ in
+        printf
+          !"HOLE EDGE %{sexp:Point.t} to %{sexp:Point.t} MATCHES %{sexp:Point.t} \
+            %{sexp:Point.t}\n\
+            %!"
+          hole_from_p
+          hole_to_p
+          from_p
+          to_p)
+  done;
+  Queue.to_list res
 ;;
 
 let sort_by_min_distance_to_hole_vertices t pts =

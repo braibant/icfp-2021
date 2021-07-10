@@ -19,7 +19,7 @@ val invalid_edges : t -> (Edge.t * Bignum.t) list
 val min_max_length_sq_for_edge : t -> Edge.t -> Bignum.t * Bignum.t
 val edge_inside_hole : t -> Edge.t -> bool
 val dislikes : t -> int
-val find_pose_edge_that_matches_hole_edge : t -> unit
+val find_pose_edge_that_matches_hole_edge : t -> ((Point.t * Point.t) * (int * int)) list
 val sort_by_min_distance_to_hole_vertices : t -> Point.t list -> Point.t list
 
 (* transform *)

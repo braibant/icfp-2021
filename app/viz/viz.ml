@@ -134,6 +134,28 @@ module State = struct
           ; history = Operation.Change_frozen old_frozen :: state.history
           }))
   ;;
+
+  let fit_idx = ref 0
+
+  let fit_unique_edge t =
+    match Pose.find_pose_edge_that_matches_hole_edge t.pose with
+    | [] -> t
+    | hole_edge_matches ->
+      (* This is a very ad-hoc way make fit - undo - fit cycle though
+          options *)
+      if !fit_idx >= List.length hole_edge_matches then fit_idx := 0;
+      let (hole_from, hole_to), (from_p, to_p) =
+        List.nth_exn hole_edge_matches !fit_idx
+      in
+      incr fit_idx;
+      { t with
+        history =
+          Change_frozen t.manually_frozen_vertices :: Move_points t.pose :: t.history
+      ; pose = Pose.move (Pose.move t.pose from_p ~to_:hole_from) to_p ~to_:hole_to
+      ; manually_frozen_vertices =
+          Set.add (Set.add t.manually_frozen_vertices from_p) to_p
+      }
+  ;;
 end
 
 open State
@@ -547,7 +569,7 @@ let rec interact
   let state = if !vbar_pressed then State.reflect_vertical state else state in
   let state = if !rotate_pressed then State.rotate state else state in
   let state = if !reset_pressed then State.reset state else state in
-  if !fit_pressed then Pose.find_pose_edge_that_matches_hole_edge state.pose;
+  let state = if !fit_pressed then State.fit_unique_edge state else state in
   let state =
     draw_problem
       ~wall_x:10
