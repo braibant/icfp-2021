@@ -380,7 +380,12 @@ let draw_problem
     (List.zip_exn hole_vertices (List.tl_exn hole_vertices @ [ List.hd_exn hole_vertices ])
     |> List.map ~f:(fun ((x1, y1), (x2, y2)) -> x1, y1, x2, y2)
     |> Array.of_list);
+  (* Draw a white halo around hole points because Dmitry asked for it. *)
+  G.set_color G.white;
+  G.set_line_width (Int.max 1 (px / 4));
+  List.iter hole_vertices ~f:(fun (x, y) -> G.draw_circle x y 6);
   (* Draw the red stick figure. *)
+  G.set_line_width (Int.max 1 (px / 2));
   let scaled_pose_vertices =
     Pose.vertices state.pose
     |> Map.data
