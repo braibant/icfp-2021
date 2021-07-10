@@ -11,6 +11,12 @@ type t =
 
 let vertex t idx = Map.find_exn t.vertices idx
 
+let segment t (a, b) =
+  let pa = vertex t a in
+  let pb = vertex t b in
+  Segment.create pa pb
+;;
+
 let create problem =
   { problem
   ; vertices =
@@ -101,14 +107,20 @@ let shift t (dx, dy) =
   { t with vertices = Map.map t.vertices ~f:(fun p -> Point.shift p (dx, dy)) }
 ;;
 
+let segment_inside_hole t (segment : Segment.t) =
+  Polygon.contains t.hole_polygon segment.a
+  && Polygon.contains t.hole_polygon segment.b
+  && not (Polygon.intersect_segment t.hole_polygon segment)
+;;
+
 let edge_inside_hole t (a, b) =
   let pa = Map.find_exn t.vertices a in
   let pb = Map.find_exn t.vertices b in
   let the_edge = Segment.create pa pb in
-  Polygon.contains t.hole_polygon pa
-  && Polygon.contains t.hole_polygon pb
-  && not (Polygon.intersect_segment t.hole_polygon the_edge)
+  segment_inside_hole t the_edge
 ;;
+
+let inside_hole t = List.for_all t.problem.figure_edges ~f:(edge_inside_hole t)
 
 let reflect_vertical t =
   let max_x, _max_y = Problem.max_xy t.problem in

@@ -11,6 +11,9 @@ val set_vertices : t -> Point.t list -> t
 val load_exn : problem:Problem.t -> filename:string -> t
 val save_exn : t -> filename:string -> unit
 
+(* Get segment from edge *)
+val segment : t -> Edge.t -> Segment.t
+
 (* get vertex by number *)
 val vertex : t -> int -> Point.t
 
@@ -18,9 +21,11 @@ val vertex : t -> int -> Point.t
 val invalid_edges : t -> (Edge.t * Bignum.t) list
 val min_max_length_sq_for_edge : t -> Edge.t -> Bignum.t * Bignum.t
 val edge_inside_hole : t -> Edge.t -> bool
+val segment_inside_hole : t -> Segment.t -> bool
 val dislikes : t -> int
 val find_pose_edge_that_matches_hole_edge : t -> ((Point.t * Point.t) * (int * int)) list
 val sort_by_min_distance_to_hole_vertices : t -> Point.t list -> Point.t list
+val inside_hole : t -> bool
 
 (* transform *)
 val move : t -> int -> to_:Point.t -> t
