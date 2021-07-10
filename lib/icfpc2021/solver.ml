@@ -160,10 +160,18 @@ let create_deeper_stack_frame t =
 
 let create_initial_stack t = [ create_deeper_stack_frame t ]
 
+let all_edges_to_frozen_inside_hole vertex ~frozen_vertices ~vertex_edges ~pose =
+  let edges = Map.find vertex_edges vertex |> Option.value ~default:[] in
+  let connected_vertices = List.map edges ~f:snd in
+  let frozen_connections = List.filter connected_vertices ~f:(Set.mem frozen_vertices) in
+  List.for_all frozen_connections ~f:(fun frozen_vertex ->
+      Pose.edge_inside_hole pose (vertex, frozen_vertex))
+;;
+
 let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
-  printf "\n\nSolver.incremental_run ~stack:%d\n%!" (List.length stack0);
+  (* printf "\n\nSolver.incremental_run ~stack:%d\n%!" (List.length stack0); *)
   let rec incremental_loop t ~work_to_do ~stack =
-    printf "incremental_loop ~stack:%d\n%!" (List.length stack);
+    (* printf "incremental_loop ~stack:%d\n%!" (List.length stack); *)
     if Set.is_empty t.vertices_left
     then `Done t
     else if work_to_do <= 0
@@ -184,7 +192,7 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
         | `Done t -> `Done t
         | `Todo (t, stack) -> `Todo (t, stack)
         | `Failed work_to_do ->
-          printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack);
+          (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
           `Failed work_to_do))
   and alternative_position_loop
       (t : t)
@@ -193,19 +201,19 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
       ~stack_excluding_self
       alternative_positions
     =
-    let stack_depth = List.length stack_excluding_self + 1 in
-    printf "alternative_position_loop\n%!";
-    List.iteri
-      (List.rev stack_excluding_self)
-      ~f:(fun i Stack_frame.{ alternative_positions; _ } ->
-        printf
-          "  - stack depth %d: alternative_positions=%d\n%!"
-          (i + 1)
-          (List.length alternative_positions));
-    printf
-      "  - stack depth %d: alternative_positions=%d\n%!"
-      stack_depth
-      (List.length alternative_positions);
+    (* let stack_depth = List.length stack_excluding_self + 1 in *)
+    (* printf "alternative_position_loop\n%!";
+     * List.iteri
+     *   (List.rev stack_excluding_self)
+     *   ~f:(fun i Stack_frame.{ alternative_positions; _ } ->
+     *     printf
+     *       "  - stack depth %d: alternative_positions=%d\n%!"
+     *       (i + 1)
+     *       (List.length alternative_positions));
+     * printf
+     *   "  - stack depth %d: alternative_positions=%d\n%!"
+     *   stack_depth
+     *   (List.length alternative_positions); *)
     if work_to_do <= 0
     then
       `Todo
@@ -217,35 +225,47 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
       | [] -> `Failed work_to_do
       | pos :: rest_aps ->
         let pose = Pose.move t.pose next_vertex ~to_:pos in
-        (* CR scvalex: Check that all edges connecting next_vertex to
-           the frozen_vertices in the new pose are inside the
-           polygon. *)
-        let frozen_vertices = Set.add t.frozen_vertices next_vertex in
-        let vertices_left = Set.remove t.vertices_left next_vertex in
-        let updated_t = { t with pose; frozen_vertices; vertices_left } in
-        let cur_frame =
-          (* CR scvalex: Should this solver_t be t or updated_t? *)
-          Stack_frame.{ solver_t = t; next_vertex; alternative_positions = rest_aps }
-        in
-        if Set.is_empty vertices_left
-        then `Done updated_t
-        else (
-          let updated_stack =
-            create_deeper_stack_frame updated_t :: cur_frame :: stack_excluding_self
+        if all_edges_to_frozen_inside_hole
+             next_vertex
+             ~pose
+             ~frozen_vertices:t.frozen_vertices
+             ~vertex_edges:t.vertex_edges
+        then (
+          let frozen_vertices = Set.add t.frozen_vertices next_vertex in
+          let vertices_left = Set.remove t.vertices_left next_vertex in
+          let updated_t = { t with pose; frozen_vertices; vertices_left } in
+          let cur_frame =
+            (* CR scvalex: Should this solver_t be t or updated_t? *)
+            Stack_frame.{ solver_t = t; next_vertex; alternative_positions = rest_aps }
           in
-          match
-            incremental_loop updated_t ~work_to_do:(work_to_do - 1) ~stack:updated_stack
-          with
-          | `Done t -> `Done t
-          | `Todo (t, stack) -> `Todo (t, stack)
-          | `Failed work_to_do ->
-            printf "trying alternatives after failure\n%!";
-            alternative_position_loop
-              t
-              rest_aps
-              ~next_vertex
-              ~work_to_do
-              ~stack_excluding_self))
+          if Set.is_empty vertices_left
+          then `Done updated_t
+          else (
+            let updated_stack =
+              create_deeper_stack_frame updated_t :: cur_frame :: stack_excluding_self
+            in
+            match
+              incremental_loop updated_t ~work_to_do:(work_to_do - 1) ~stack:updated_stack
+            with
+            | `Done t -> `Done t
+            | `Todo (t, stack) -> `Todo (t, stack)
+            | `Failed work_to_do ->
+              (* printf "trying alternatives after failure\n%!"; *)
+              alternative_position_loop
+                t
+                rest_aps
+                ~next_vertex
+                ~work_to_do
+                ~stack_excluding_self))
+        else
+          (* The new vertex has edges that go outside the hole. *)
+          (* printf "trying alternatives edge overlap\n%!"; *)
+          alternative_position_loop
+            t
+            rest_aps
+            ~next_vertex
+            ~work_to_do
+            ~stack_excluding_self)
   in
   incremental_loop t0 ~work_to_do:work_to_do0 ~stack:stack0
 ;;
