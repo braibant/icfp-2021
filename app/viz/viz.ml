@@ -90,6 +90,41 @@ module State = struct
     ; history = Move_points t.pose :: t.history
     }
   ;;
+
+  let find_vertex_near_mouse state ~mouse_x ~mouse_y =
+    let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
+    let idx, _ =
+      Map.fold
+        ~init:(-1, Bignum.million)
+        (Pose.vertices state.pose)
+        ~f:(fun ~key:idx ~data:v (best, best_distance) ->
+          let d = Point.distance v mouse_point in
+          if Bignum.(d < best_distance) then idx, d else best, best_distance)
+    in
+    if idx = -1 then None else Some idx
+  ;;
+
+  let update_manually_frozen_vertices state ~mouse_x ~mouse_y =
+    match state.selected_vertex with
+    | Some _ -> state
+    | None ->
+      (match mouse_x, mouse_y with
+      | None, _ | _, None -> state
+      | Some mouse_x, Some mouse_y ->
+        (match find_vertex_near_mouse state ~mouse_x ~mouse_y with
+        | None -> state
+        | Some idx ->
+          let old_frozen = state.manually_frozen_vertices in
+          let manually_frozen_vertices =
+            if Set.mem state.manually_frozen_vertices idx
+            then Set.remove state.manually_frozen_vertices idx
+            else Set.add state.manually_frozen_vertices idx
+          in
+          { state with
+            manually_frozen_vertices
+          ; history = Operation.Change_frozen old_frozen :: state.history
+          }))
+  ;;
 end
 
 open State
@@ -138,19 +173,6 @@ let draw_bottom_text_gen ~x ~wall_y ~bottom_text_count str =
   G.moveto x (wall_y - 20 - (15 * !bottom_text_count));
   incr bottom_text_count;
   G.draw_string str
-;;
-
-let find_vertex_near_mouse state ~mouse_x ~mouse_y =
-  let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
-  let idx, _ =
-    Map.fold
-      ~init:(-1, Bignum.million)
-      (Pose.vertices state.pose)
-      ~f:(fun ~key:idx ~data:v (best, best_distance) ->
-        let d = Point.distance v mouse_point in
-        if Bignum.(d < best_distance) then idx, d else best, best_distance)
-  in
-  if idx = -1 then None else Some idx
 ;;
 
 let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_pressed =
@@ -217,28 +239,6 @@ let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
       in
       Some mouse_x, Some mouse_y)
     else None, None
-;;
-
-let update_manually_frozen_vertices state ~mouse_x ~mouse_y =
-  match state.selected_vertex with
-  | Some _ -> state
-  | None ->
-    (match mouse_x, mouse_y with
-    | None, _ | _, None -> state
-    | Some mouse_x, Some mouse_y ->
-      (match find_vertex_near_mouse state ~mouse_x ~mouse_y with
-      | None -> state
-      | Some idx ->
-        let old_frozen = state.manually_frozen_vertices in
-        let manually_frozen_vertices =
-          if Set.mem state.manually_frozen_vertices idx
-          then Set.remove state.manually_frozen_vertices idx
-          else Set.add state.manually_frozen_vertices idx
-        in
-        { state with
-          manually_frozen_vertices
-        ; history = Operation.Change_frozen old_frozen :: state.history
-        }))
 ;;
 
 (* Draw the hole, figure, and various info.  Note that the coordinate
