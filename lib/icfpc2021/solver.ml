@@ -50,8 +50,8 @@ let create ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
 (* Pick the next vertex to work on: Looking at all the unfrozen
    vertices that are connected to [frozen_vertices], pick the one with
    the most connections to the [frozen_vertices]. *)
-let pick_next_vertex ~vertices_left ~vertex_edges ~frozen_vertices =
-  let next_vertex, conns, num_conns =
+let pick_next_vertex ~vertices ~vertices_left ~vertex_edges ~frozen_vertices =
+  let sorted_vertices =
     List.map (Set.to_list vertices_left) ~f:(fun a ->
         let edges = Map.find vertex_edges a |> Option.value ~default:[] in
         let connected_vertices = List.map edges ~f:snd in
@@ -61,6 +61,23 @@ let pick_next_vertex ~vertices_left ~vertex_edges ~frozen_vertices =
         a, frozen_connections, List.length frozen_connections)
     |> List.sort ~compare:(fun (_, _, num_conns1) (_, _, num_conns2) ->
            Int.descending num_conns1 num_conns2)
+  in
+  let _, _, num_conns = sorted_vertices |> List.hd_exn in
+  let vertices_with_max_conns =
+    List.filter sorted_vertices ~f:(fun (_, _, n) -> n = num_conns)
+  in
+  (* Pick the furthest away vertex with maximum number of connections
+     to frozen vertices.  *)
+  let next_vertex, conns, _ =
+    List.map vertices_with_max_conns ~f:(fun (vx, conns, _) ->
+        let max_distance_to_frozen_nodes =
+          let vx_pt = Map.find_exn vertices vx in
+          List.map conns ~f:(fun vy -> Point.distance vx_pt (Map.find_exn vertices vy))
+          |> List.fold_left ~init:Bignum.zero ~f:Bignum.max
+        in
+        vx, conns, max_distance_to_frozen_nodes)
+    |> List.sort ~compare:(fun (_, _, max_dist1) (_, _, max_dist2) ->
+           Bignum.descending max_dist1 max_dist2)
     |> List.hd_exn
   in
   (* printf
@@ -105,6 +122,7 @@ let rec recursive_run t =
   else (
     let next_vertex, conns, _num_conns =
       pick_next_vertex
+        ~vertices:(Pose.vertices t.pose)
         ~vertices_left:t.vertices_left
         ~vertex_edges:t.vertex_edges
         ~frozen_vertices:t.frozen_vertices
@@ -141,6 +159,7 @@ let rec recursive_run t =
 let create_deeper_stack_frame t =
   let next_vertex, conns, _num_conns =
     pick_next_vertex
+      ~vertices:(Pose.vertices t.pose)
       ~vertices_left:t.vertices_left
       ~vertex_edges:t.vertex_edges
       ~frozen_vertices:t.frozen_vertices
