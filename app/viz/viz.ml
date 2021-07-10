@@ -481,7 +481,7 @@ let rec interact
       ~state
   in
   let solver = if !stop_solver then None else solver in
-  let solver =
+  let state, solver =
     if !start_solver
     then (
       let solver =
@@ -491,8 +491,9 @@ let rec interact
           ~alternative_offsets
       in
       printf "Invoking solver...\n%!";
-      Some (solver, Solver.create_initial_stack solver))
-    else solver
+      ( { state with history = Move_points state.pose :: state.history }
+      , Some (solver, Solver.create_initial_stack solver) ))
+    else state, solver
   in
   G.synchronize ();
   let state, solver =
