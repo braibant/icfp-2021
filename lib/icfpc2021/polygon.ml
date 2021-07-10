@@ -92,6 +92,12 @@ let intersect_segment (t : t) s1 =
   !intersect
 ;;
 
+let on_perimeter (t : t) s1 =
+  fold_edges t ~f:(fun acc other -> acc || Segment.contains_segment s1 ~other) ~init:false
+;;
+
+let intersect_segment t s1 = if on_perimeter t s1 then false else intersect_segment t s1
+
 let distance t point =
   let distance =
     fold_edges

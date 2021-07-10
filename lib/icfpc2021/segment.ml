@@ -40,7 +40,7 @@ let distance =
       let t = max zero (min one t) in
       let projection =
         let x = segment.a.x + (t * (segment.b.x - segment.a.x)) in
-        let y = segment.a.x + (t * (segment.b.y - segment.a.y)) in
+        let y = segment.a.y + (t * (segment.b.y - segment.a.y)) in
         Point.create ~x ~y
       in
       dist2 point projection)
@@ -88,17 +88,21 @@ module Testing = struct
     distance s (point 0 10) == 0.0
   ;;
 
-  (* let%test _ =
-   *   let s = segment (point 0 10) (point 10 10) in
-   *   printf !"Edge distance: %.2f\n%!" (distance s (point 0 10));
-   *   contains_segment s ~other:s
-   * ;;
-   *
-   * let%test _ =
-   *   let s = segment (point 0 10) (point 10 10) in
-   *   let h = segment (point 5 10) (point 10 10) in
-   *   contains_segment s ~other:h
-   * ;; *)
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    distance s (point 10 10) == 0.0
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    contains_segment s ~other:s
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    let h = segment (point 5 10) (point 10 10) in
+    contains_segment s ~other:h
+  ;;
 
   let%test _ =
     let s = segment (point 0 0) (point 0 2) in
