@@ -158,6 +158,27 @@ module State = struct
           Set.add (Set.add t.manually_frozen_vertices from_p) to_p
       }
   ;;
+
+  let randomize t =
+    let vertices = Pose.vertices t.pose in
+    let max_x, max_y = Problem.max_xy (Pose.problem t.pose) in
+    let max_x = Bignum.to_int_exn max_x in
+    let max_y = Bignum.to_int_exn max_y in
+    Random.self_init ();
+    let vertices =
+      Map.mapi vertices ~f:(fun ~key:idx ~data:p ->
+          if Set.mem t.manually_frozen_vertices idx
+          then p
+          else
+            Point.create
+              ~x:(Bignum.of_int (Random.int max_x))
+              ~y:(Bignum.of_int (Random.int max_y)))
+    in
+    { t with
+      pose = Pose.set_vertices t.pose (Map.data vertices)
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
 end
 
 open State
@@ -500,6 +521,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press > to rotate clockwise");
   draw_bottom_text (sprintf !"Press = to print edge that matches hole edge");
   draw_bottom_text (sprintf !"Press R to reset the problem");
+  draw_bottom_text (sprintf !"Press * to randomize unfrozen vertices");
   state
 ;;
 
@@ -531,6 +553,7 @@ let rec interact
   let rotate_pressed = ref false in
   let fit_pressed = ref false in
   let reset_pressed = ref false in
+  let random_pressed = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -553,6 +576,7 @@ let rec interact
       | '>' -> rotate_pressed := true
       | '=' -> fit_pressed := true
       | 'R' -> reset_pressed := true
+      | '*' -> random_pressed := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
@@ -573,6 +597,7 @@ let rec interact
   let state = if !rotate_pressed then State.rotate state else state in
   let state = if !reset_pressed then State.reset state else state in
   let state = if !fit_pressed then State.fit_unique_edge state else state in
+  let state = if !random_pressed then State.randomize state else state in
   let state =
     draw_problem
       ~wall_x:10

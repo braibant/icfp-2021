@@ -161,20 +161,27 @@ let find_pose_edge_that_matches_hole_edge t =
           | None -> Some edge
           | Some _ -> None)
     in
-    List.iter matching_edges ~f:(fun (from_, to_) ->
-        Queue.enqueue res ((hole_from_p, hole_to_p), (from_, to_));
-        let from_p = Map.find_exn t.vertices from_ in
-        let to_p = Map.find_exn t.vertices to_ in
-        printf
-          !"HOLE EDGE %{sexp:Point.t} to %{sexp:Point.t} MATCHES %{sexp:Point.t} \
-            %{sexp:Point.t}\n\
-            %!"
-          hole_from_p
-          hole_to_p
-          from_p
-          to_p)
+    Queue.enqueue res ((hole_from_p, hole_to_p), matching_edges)
   done;
-  Queue.to_list res
+  let res = Queue.to_list res in
+  (* sort edges with less ambiguous matches first *)
+  let res =
+    List.sort res ~compare:(fun (_, m1) (_, m2) ->
+        Int.compare (List.length m1) (List.length m2))
+  in
+  List.concat_map res ~f:(fun ((hole_from_p, hole_to_p), matches) ->
+      List.map matches ~f:(fun (from_, to_) ->
+          let from_p = Map.find_exn t.vertices from_ in
+          let to_p = Map.find_exn t.vertices to_ in
+          printf
+            !"HOLE EDGE %{sexp:Point.t} to %{sexp:Point.t} MATCHES %{sexp:Point.t} \
+              %{sexp:Point.t}\n\
+              %!"
+            hole_from_p
+            hole_to_p
+            from_p
+            to_p;
+          (hole_from_p, hole_to_p), (from_, to_)))
 ;;
 
 let sort_by_min_distance_to_hole_vertices t pts =
