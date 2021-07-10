@@ -34,7 +34,9 @@ let commands =
            fun () ->
              let problem = Problem.load_exn ~filename:problem in
              let pose = Pose.load_exn ~problem ~filename:answer in
-             printf "%d\n" (Pose.dislikes pose)) )
+             match Pose.invalid_edges pose with
+             | [] -> printf "%d\n" (Pose.dislikes pose)
+             | _ -> printf "999999999\n") )
     ]
 ;;
 
