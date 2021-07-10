@@ -43,6 +43,6 @@ if [ $? -eq 0 ] ; then
         echo "Now: $new_dislikes"
         echo "Impovement: $(( $current_dislikes - $new_dislikes ))"
         echo "I am going to revert any changes to the answer just in case"
-        git checkout $answer
+        #git checkout $answer
     fi
 fi
