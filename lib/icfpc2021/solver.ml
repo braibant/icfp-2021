@@ -118,46 +118,6 @@ let find_alternative_positions_for_vertex
   Set.to_list res |> Pose.sort_by_min_distance_to_hole_vertices pose
 ;;
 
-let rec recursive_run t =
-  if Set.is_empty t.vertices_left
-  then `Done t
-  else (
-    let next_vertex, conns, _num_conns =
-      pick_next_vertex
-        ~vertices:(Pose.vertices t.pose)
-        ~vertices_left:t.vertices_left
-        ~vertex_edges:t.vertex_edges
-        ~frozen_vertices:t.frozen_vertices
-    in
-    (* printf
-     *   "Solver trying to fix vertex %d with %d frozen connections\n%!"
-     *   next_vertex
-     *   num_conns; *)
-    let alternative_positions =
-      find_alternative_positions_for_vertex
-        next_vertex
-        ~connections_to_frozen_vertices:conns
-        ~alternative_offsets:t.alternative_offsets
-        ~pose:t.pose
-    in
-    (* printf "Solver found %d alternative positions\n%!" (Set.length alternative_positions); *)
-    let rec alternative_position_loop = function
-      | [] -> `Failed
-      | pos :: rest_aps ->
-        let pose = Pose.move t.pose next_vertex ~to_:pos in
-        (* CR scvalex: Check that all edges connecting next_vertex to
-           the frozen_vertices in the new pose are inside the
-           polygon. *)
-        let frozen_vertices = Set.add t.frozen_vertices next_vertex in
-        let vertices_left = Set.remove t.vertices_left next_vertex in
-        let t = { t with pose; frozen_vertices; vertices_left } in
-        (match recursive_run t with
-        | `Done t -> `Done t
-        | `Failed -> alternative_position_loop rest_aps)
-    in
-    alternative_position_loop alternative_positions)
-;;
-
 let create_deeper_stack_frame t =
   let next_vertex, conns, _num_conns =
     pick_next_vertex
@@ -187,7 +147,7 @@ let create_deeper_stack_frame t =
     }
 ;;
 
-let create_initial_stack t = [ create_deeper_stack_frame t ]
+let create_initial_dfs_stack t = [ create_deeper_stack_frame t ]
 
 let all_edges_to_frozen_inside_hole vertex ~frozen_vertices ~vertex_edges ~pose =
   let edges = Map.find vertex_edges vertex |> Option.value ~default:[] in
@@ -197,7 +157,7 @@ let all_edges_to_frozen_inside_hole vertex ~frozen_vertices ~vertex_edges ~pose 
       Pose.edge_inside_hole pose (vertex, frozen_vertex))
 ;;
 
-let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
+let incremental_dfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
   (* printf "\n\nSolver.incremental_run ~stack:%d\n%!" (List.length stack0); *)
   let rec incremental_loop t ~work_to_do ~stack =
     (* printf "incremental_loop ~stack:%d\n%!" (List.length stack); *)

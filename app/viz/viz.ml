@@ -602,7 +602,7 @@ let rec interact
       , Some
           ( solver
           , match solver_kind with
-            | `Dfs -> Solver.create_initial_stack solver
+            | `Dfs -> Solver.create_initial_dfs_stack solver
             | `Bfs -> Solver.create_initial_bfs_stack solver ) ))
     else state, solver
   in
@@ -613,7 +613,7 @@ let rec interact
     | Some (solver, stack) ->
       let solver_res =
         match solver_kind with
-        | `Dfs -> Solver.incremental_run solver ~work_to_do:work_per_frame ~stack
+        | `Dfs -> Solver.incremental_dfs_run solver ~work_to_do:work_per_frame ~stack
         | `Bfs -> Solver.incremental_bfs_run solver ~work_to_do:work_per_frame ~stack
       in
       (match solver_res with
