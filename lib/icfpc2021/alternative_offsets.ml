@@ -34,13 +34,13 @@ let create (prob : Problem.t) =
   List.fold_left prob.figure_edges ~init:Int.Map.empty ~f:(fun t (a, b) ->
       let offsets = compute_offsets prob ~a ~b in
       let t =
-        Int.Map.change t a ~f:(fun xs ->
+        Map.update t a ~f:(fun xs ->
             let xs = Option.value xs ~default:Int.Map.empty in
-            Some Int.Map.(set xs ~key:b ~data:offsets))
+            Int.Map.(set xs ~key:b ~data:offsets))
       in
-      Int.Map.change t b ~f:(fun xs ->
+      Int.Map.update t b ~f:(fun xs ->
           let xs = Option.value xs ~default:Int.Map.empty in
-          Some Int.Map.(set xs ~key:a ~data:offsets)))
+          Int.Map.(set xs ~key:a ~data:offsets)))
 ;;
 
 let find t a b =
