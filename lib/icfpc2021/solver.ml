@@ -90,10 +90,18 @@ let find_alternative_positions_for_vertex
               ~y:Bignum.(connected_frozen_vertex.y + dy))
         |> Point.Set.of_list)
   in
-  match alternative_positions_per_connected_node with
-  | [] -> Point.Set.empty
-  | [ aps ] -> aps
-  | aps :: apss -> List.fold_left apss ~init:aps ~f:(fun acc aps -> Set.inter acc aps)
+  let res =
+    match alternative_positions_per_connected_node with
+    | [] -> Point.Set.empty
+    | [ aps ] -> aps
+    | aps :: apss -> List.fold_left apss ~init:aps ~f:(fun acc aps -> Set.inter acc aps)
+  in
+  Set.to_list res
+  |> List.map ~f:(fun p ->
+         (* find min distance to some hole vertex *)
+         Pose.find_min_distance_to_hole_vertices pose p, p)
+  |> List.sort ~compare:(fun (d1, _) (d2, _) -> Int.compare d1 d2)
+  |> List.map ~f:snd
 ;;
 
 let rec recursive_run t =
@@ -132,7 +140,7 @@ let rec recursive_run t =
         | `Done t -> `Done t
         | `Failed -> alternative_position_loop rest_aps)
     in
-    alternative_position_loop (Set.to_list alternative_positions))
+    alternative_position_loop alternative_positions)
 ;;
 
 let create_deeper_stack_frame t =
@@ -152,7 +160,6 @@ let create_deeper_stack_frame t =
       ~connections_to_frozen_vertices:conns
       ~alternative_offsets:t.alternative_offsets
       ~pose:t.pose
-    |> Set.to_list
   in
   (* printf "Solver found %d alternative positions\n%!" (List.length alternative_positions); *)
   Stack_frame.{ solver_t = t; next_vertex; alternative_positions }

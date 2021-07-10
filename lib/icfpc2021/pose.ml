@@ -122,11 +122,8 @@ let transpose t =
   { t with vertices = Map.map t.vertices ~f:(fun p -> Point.create ~x:p.y ~y:p.x) }
 ;;
 
-let dislikes t =
-  List.sum
-    (module Int)
-    t.problem.Problem.hole
-    ~f:(fun hole_p ->
+let dislikes_per_hole_vertex t =
+  Array.map t.hole_polygon ~f:(fun hole_p ->
       Map.fold ~init:Int.max_value t.vertices ~f:(fun ~key:_ ~data:p closest_dist ->
           if closest_dist = 0
           then 0
@@ -134,6 +131,8 @@ let dislikes t =
             let dist = Point.distance hole_p p |> Bignum.to_int_exn in
             Int.min dist closest_dist)))
 ;;
+
+let dislikes t = dislikes_per_hole_vertex t |> Array.sum (module Int) ~f:Fn.id
 
 let find_pose_edge_that_matches_hole_edge t =
   (* go over all hole edges, looking for pose edges that will fit there. 
@@ -163,4 +162,15 @@ let find_pose_edge_that_matches_hole_edge t =
         to_p
     | _ -> ()
   done
+;;
+
+let find_min_distance_to_hole_vertices t pt =
+  let dislikes_per_hole = dislikes_per_hole_vertex t in
+  Array.foldi ~init:Int.max_value t.hole_polygon ~f:(fun idx best hole_pt ->
+      (* if hole vertex is already covered, ignore it *)
+      if dislikes_per_hole.(idx) = 0
+      then best
+      else (
+        let distance = Point.distance pt hole_pt |> Bignum.to_int_exn in
+        Int.min distance best))
 ;;
