@@ -343,9 +343,14 @@ let draw_problem
   let wall_y = wall_y + snd state.view_offset in
   let scale = Bignum.( * ) state.scale (compute_scale ~prob ~wall_width ~wall_height) in
   let figure_to_wall_space Point.{ x; y } =
-    let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
+    let x =
+      fst state.view_offset
+      + wall_x
+      + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn)
+    in
     let y =
-      wall_y
+      snd state.view_offset
+      + wall_y
       + wall_height
       - (Bignum.((y + one) / scale) |> Bignum.round |> Bignum.to_int_exn)
     in
