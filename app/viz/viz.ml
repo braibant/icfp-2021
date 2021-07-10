@@ -69,11 +69,27 @@ module State = struct
       let curr = Map.find_exn (Pose.vertices t.pose) idx in
       (match find_hole_vertex_near t ~x:curr.x ~y:curr.y with
       | None -> t
-      | Some p -> { t with selected_vertex = None; pose = Pose.move t.pose idx ~to_:p })
+      | Some p ->
+        { t with
+          selected_vertex = None
+        ; pose = Pose.move t.pose idx ~to_:p
+        ; history = Move_points t.pose :: t.history
+        })
   ;;
 
-  let reflect_vertical t = { t with pose = Pose.reflect_vertical t.pose }
-  let rotate t = { t with pose = Pose.reflect_vertical (Pose.transpose t.pose) }
+  let reflect_vertical t =
+    { t with
+      pose = Pose.reflect_vertical t.pose
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
+
+  let rotate t =
+    { t with
+      pose = Pose.reflect_vertical (Pose.transpose t.pose)
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
 end
 
 open State
