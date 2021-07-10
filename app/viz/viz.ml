@@ -398,6 +398,7 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
   let space_pressed = ref false in
   let s_pressed = ref false in
   let f_pressed = ref false in
+  let g_pressed = ref false in
   let shift = ref (0, 0) in
   let () =
     while G.key_pressed () do
@@ -412,6 +413,7 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
       | 'W' -> shift := 0, -1
       | 'o' -> show_alternative_offsets := true
       | 'O' -> show_alternative_offsets := false
+      | 'G' -> g_pressed := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -439,6 +441,25 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
       ~state
   in
   G.synchronize ();
+  let state =
+    if !g_pressed
+    then (
+      let solver =
+        Solver.create
+          ~initial_pose:state.pose
+          ~manually_frozen_vertices:state.manually_frozen_vertices
+          ~alternative_offsets
+      in
+      printf "Invoking solver...\n%!";
+      match Solver.run solver with
+      | `Failed ->
+        printf "ERROR: Solving failed\n%!";
+        state
+      | `Done solver ->
+        printf "Solving done\n%!";
+        { state with pose = Solver.pose solver })
+    else state
+  in
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
