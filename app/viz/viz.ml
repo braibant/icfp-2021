@@ -519,6 +519,7 @@ let rec interact
     ~show_alternative_offsets
     ~solver
     ~work_per_frame
+    ~solver_kind
   =
   let shutting_down = ref false in
   let space_pressed = ref false in
@@ -598,7 +599,11 @@ let rec interact
       in
       printf "Invoking solver...\n%!";
       ( { state with history = Move_points state.pose :: state.history }
-      , Some (solver, Solver.create_initial_stack solver) ))
+      , Some
+          ( solver
+          , match solver_kind with
+            | `Dfs -> Solver.create_initial_dfs_stack solver
+            | `Bfs -> Solver.create_initial_bfs_stack solver ) ))
     else state, solver
   in
   G.synchronize ();
@@ -606,7 +611,12 @@ let rec interact
     match solver with
     | None -> state, solver
     | Some (solver, stack) ->
-      (match Solver.incremental_run solver ~work_to_do:work_per_frame ~stack with
+      let solver_res =
+        match solver_kind with
+        | `Dfs -> Solver.incremental_dfs_run solver ~work_to_do:work_per_frame ~stack
+        | `Bfs -> Solver.incremental_bfs_run solver ~work_to_do:work_per_frame ~stack
+      in
+      (match solver_res with
       | `Done solver ->
         printf "Solving done\n%!";
         { state with pose = Solver.pose solver }, None
@@ -628,10 +638,17 @@ let rec interact
       ~alternative_offsets
       ~show_alternative_offsets
       ~solver
+      ~solver_kind
       ~work_per_frame)
 ;;
 
-let display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame =
+let display
+    ~filename
+    ~answer_filename
+    ~no_alternative_offsets
+    ~work_per_frame
+    ~solver_kind
+  =
   let prob = Problem.load_exn ~filename in
   let alternative_offsets =
     if no_alternative_offsets
@@ -659,6 +676,7 @@ let display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame =
       ~alternative_offsets
       ~show_alternative_offsets:(ref false)
       ~solver:None
+      ~solver_kind
       ~work_per_frame
   in
   G.close_graph ()
@@ -684,9 +702,21 @@ let commands =
                "-work-to-do"
                (optional_with_default 10 int)
                ~doc:"INT The amount of work the solver should do per animation frame"
+           and solver_kind =
+             flag
+               "-solver-kind"
+               (optional_with_default
+                  `Dfs
+                  (Arg_type.of_alist_exn [ "dfs", `Dfs; "bfs", `Bfs ]))
+               ~doc:"dfs|bfs Which solver to use"
            in
            fun () ->
-             display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame) )
+             display
+               ~filename
+               ~answer_filename
+               ~no_alternative_offsets
+               ~work_per_frame
+               ~solver_kind) )
     ]
 ;;
 
