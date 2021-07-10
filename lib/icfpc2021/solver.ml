@@ -297,6 +297,10 @@ let create_initial_bfs_stack t =
          ~frozen_vertices:t.manually_frozen_vertices
          ~vertex_edges:t.vertex_edges)
   in
+  (* printf
+   *   !"Selected first vertex %d at %{sexp#hum: Point.t}\n%!"
+   *   first_vertex
+   *   (Map.find_exn (Pose.vertices t.pose) first_vertex); *)
   [ create_bfs_stack_frame t first_vertex ~queue ]
 ;;
 
