@@ -143,10 +143,12 @@ module State = struct
     | hole_edge_matches ->
       (* This is a very ad-hoc way make fit - undo - fit cycle though
           options *)
-      if !fit_idx >= List.length hole_edge_matches then fit_idx := 0;
+      let num_matches = List.length hole_edge_matches in
+      if !fit_idx >= num_matches then fit_idx := 0;
       let (hole_from, hole_to), (from_p, to_p) =
         List.nth_exn hole_edge_matches !fit_idx
       in
+      printf "'=': match %d out of %d\n%!" !fit_idx num_matches;
       incr fit_idx;
       { t with
         history =
