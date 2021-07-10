@@ -165,4 +165,10 @@ module Testing = struct
     let point = point 1 1 in
     distance polygon point == 1.0
   ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 1, 10; 2, 5; 2, 20; 0, 20 ] in
+    let segment = Segment.create (point 0 0) (point 2 5) in
+    intersect_segment polygon segment
+  ;;
 end

@@ -52,6 +52,12 @@ let distance =
 let contains segment point = Float.(abs (distance segment point) <= 0.00001)
 let contains_segment segment ~other = contains segment other.a && contains segment other.b
 
+let middle { a; b } =
+  let open Point in
+  let open Bignum in
+  { x = (a.x + b.x) / Bignum.of_int 2; y = (a.y + b.y) / Bignum.of_int 2 }
+;;
+
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
   let segment = create

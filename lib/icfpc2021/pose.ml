@@ -110,7 +110,9 @@ let shift t (dx, dy) =
 let segment_inside_hole t (segment : Segment.t) =
   Polygon.contains t.hole_polygon segment.a
   && Polygon.contains t.hole_polygon segment.b
-  && not (Polygon.intersect_segment t.hole_polygon segment)
+  && (not (Polygon.intersect_segment t.hole_polygon segment))
+  (* This is a hack *)
+  && Polygon.contains t.hole_polygon (Segment.middle segment)
 ;;
 
 let edge_inside_hole t (a, b) =
