@@ -10,7 +10,6 @@ let compute_offsets epsilon ~a ~b =
   let orig_len = Point.distance a b in
   let min_len = Bignum.(orig_len * (one - tolerance)) in
   let max_len = Bignum.(orig_len * (one + tolerance)) in
-  let _int_len = Bignum.round max_len ~dir:`Up |> Bignum.to_int_exn in
   let origin = Point.create ~x:Bignum.zero ~y:Bignum.zero in
   let max_x =
     (* at most sqrt(max_len) *)
