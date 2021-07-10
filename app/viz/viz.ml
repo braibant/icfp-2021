@@ -66,7 +66,7 @@ module State = struct
     match t.selected_vertex with
     | None -> t
     | Some idx ->
-      let curr = Map.find_exn (Pose.vertices t.pose) idx in
+      let curr = Pose.vertex t.pose idx in
       (match find_hole_vertex_near t ~x:curr.x ~y:curr.y with
       | None -> t
       | Some p ->
@@ -164,9 +164,7 @@ let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_
           (match mouse_x, mouse_y with
           | Some mouse_x, Some mouse_y ->
             let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
-            if Point.equal
-                 mouse_point
-                 (Map.find_exn (Pose.vertices state.pose) selected_vertex)
+            if Point.equal mouse_point (Pose.vertex state.pose selected_vertex)
             then state
             else (
               let pose = Pose.move state.pose selected_vertex ~to_:mouse_point in
@@ -389,7 +387,7 @@ let draw_problem
     match state.selected_vertex with
     | Some selected_vertex ->
       let point_x, point_y =
-        figure_to_wall_space (Map.find_exn (Pose.vertices state.pose) selected_vertex)
+        figure_to_wall_space (Pose.vertex state.pose selected_vertex)
       in
       G.draw_rect point_x point_y px px
     | None -> ()
@@ -415,7 +413,7 @@ let draw_problem
       List.iter
         connected_points
         ~f:(fun (point_idx, other_idx, (min_edge_sq, max_edge_sq)) ->
-          let point = Int.Map.find_exn (Pose.vertices state.pose) point_idx in
+          let point = Pose.vertex state.pose point_idx in
           let point_x, point_y = figure_to_wall_space point in
           G.set_color (G.rgb 150 150 0);
           G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
@@ -442,9 +440,7 @@ let draw_problem
   G.set_color G.black;
   let () =
     Int.Set.iter state.manually_frozen_vertices ~f:(fun idx ->
-        let point_x, point_y =
-          figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) idx)
-        in
+        let point_x, point_y = figure_to_wall_space (Pose.vertex state.pose idx) in
         G.draw_rect (point_x + (px / 2) - 5) (point_y + (px / 2) - 5) 11 11)
   in
   (* Help text *)

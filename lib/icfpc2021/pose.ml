@@ -9,6 +9,8 @@ type t =
   }
 [@@deriving fields]
 
+let vertex t idx = Map.find_exn t.vertices idx
+
 let create problem =
   { problem
   ; vertices =
