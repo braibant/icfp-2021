@@ -307,6 +307,7 @@ let draw_problem
   in
   draw_right_text
     (sprintf !"Selected vrtx: %d" (Option.value state.selected_vertex ~default:~-1));
+  draw_right_text (sprintf !"Dislikes: %d" (Pose.dislikes state.pose));
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
   G.set_color (G.rgb 200 200 200);

@@ -121,3 +121,16 @@ let reflect_vertical t =
 let transpose t =
   { t with vertices = Map.map t.vertices ~f:(fun p -> Point.create ~x:p.y ~y:p.x) }
 ;;
+
+let dislikes t =
+  List.sum
+    (module Int)
+    t.problem.Problem.hole
+    ~f:(fun hole_p ->
+      Map.fold ~init:Int.max_value t.vertices ~f:(fun ~key:_ ~data:p closest_dist ->
+          if closest_dist = 0
+          then 0
+          else (
+            let dist = Point.distance hole_p p |> Bignum.to_int_exn in
+            Int.min dist closest_dist)))
+;;
