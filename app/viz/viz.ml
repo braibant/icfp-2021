@@ -465,6 +465,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press v to snap to closest hole vertex");
   draw_bottom_text (sprintf !"Press | to reflect vertically");
   draw_bottom_text (sprintf !"Press > to rotate clockwise");
+  draw_bottom_text (sprintf !"Press = to print edge that matches hole edge");
   state
 ;;
 
