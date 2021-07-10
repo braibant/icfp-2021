@@ -484,6 +484,7 @@ let rec interact
     ~alternative_offsets
     ~show_alternative_offsets
     ~solver
+    ~work_per_frame
   =
   let shutting_down = ref false in
   let space_pressed = ref false in
@@ -568,7 +569,7 @@ let rec interact
     match solver with
     | None -> state, solver
     | Some (solver, stack) ->
-      (match Solver.incremental_run solver ~work_to_do:10 ~stack with
+      (match Solver.incremental_run solver ~work_to_do:work_per_frame ~stack with
       | `Done solver ->
         printf "Solving done\n%!";
         { state with pose = Solver.pose solver }, None
@@ -589,10 +590,11 @@ let rec interact
       ~answer_filename
       ~alternative_offsets
       ~show_alternative_offsets
-      ~solver)
+      ~solver
+      ~work_per_frame)
 ;;
 
-let display ~filename ~answer_filename ~no_alternative_offsets =
+let display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame =
   let prob = Problem.load_exn ~filename in
   let alternative_offsets =
     if no_alternative_offsets
@@ -620,6 +622,7 @@ let display ~filename ~answer_filename ~no_alternative_offsets =
       ~alternative_offsets
       ~show_alternative_offsets:(ref false)
       ~solver:None
+      ~work_per_frame
   in
   G.close_graph ()
 ;;
@@ -639,8 +642,14 @@ let commands =
                "-no-alternative-offsets"
                no_arg
                ~doc:" Don't compute alternative offsets"
+           and work_per_frame =
+             flag
+               "-work-to-do"
+               (optional_with_default 10 int)
+               ~doc:"INT The amount of work the solver should do per animation frame"
            in
-           fun () -> display ~filename ~answer_filename ~no_alternative_offsets) )
+           fun () ->
+             display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame) )
     ]
 ;;
 
