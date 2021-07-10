@@ -47,6 +47,30 @@ module State = struct
     | Change_frozen manually_frozen_vertices :: rest ->
       { t with history = rest; manually_frozen_vertices }
   ;;
+
+  let find_hole_vertex_near t ~x ~y =
+    let mouse_point = Point.create ~x ~y in
+    let start = Point.create ~x:Bignum.tenth ~y:Bignum.tenth in
+    let v, _ =
+      List.fold
+        ~init:(Point.create ~x:Bignum.zero ~y:Bignum.zero, Bignum.million)
+        (Pose.problem t.pose).Problem.hole
+        ~f:(fun (best, best_distance) v ->
+          let d = Point.distance v mouse_point in
+          if Bignum.(d < best_distance) then v, d else best, best_distance)
+    in
+    if Point.equal v start then None else Some v
+  ;;
+
+  let snap_to_closest t =
+    match t.selected_vertex with
+    | None -> t
+    | Some idx ->
+      let curr = Map.find_exn (Pose.vertices t.pose) idx in
+      (match find_hole_vertex_near t ~x:curr.x ~y:curr.y with
+      | None -> t
+      | Some p -> { t with selected_vertex = None; pose = Pose.move t.pose idx ~to_:p })
+  ;;
 end
 
 open State
@@ -410,6 +434,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
   draw_bottom_text (sprintf !"Press z to undo");
+  draw_bottom_text (sprintf !"Press v to snap to closes hole vertex");
   state
 ;;
 
@@ -434,6 +459,7 @@ let rec interact
   let s_pressed = ref false in
   let f_pressed = ref false in
   let z_pressed = ref false in
+  let v_pressed = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -451,6 +477,7 @@ let rec interact
       | 'o' -> show_alternative_offsets := true
       | 'O' -> show_alternative_offsets := false
       | 'z' -> z_pressed := true
+      | 'v' -> v_pressed := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
@@ -466,6 +493,7 @@ let rec interact
   draw_bg ();
   let state = State.shift state !shift in
   let state = if !z_pressed then State.undo state else state in
+  let state = if !v_pressed then State.snap_to_closest state else state in
   let state =
     draw_problem
       ~wall_x:10
