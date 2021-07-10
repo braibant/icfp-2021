@@ -164,13 +164,21 @@ let find_pose_edge_that_matches_hole_edge t =
   done
 ;;
 
-let find_min_distance_to_hole_vertices t pt =
+let sort_by_min_distance_to_hole_vertices t pts =
   let dislikes_per_hole = dislikes_per_hole_vertex t in
-  Array.foldi ~init:Int.max_value t.hole_polygon ~f:(fun idx best hole_pt ->
-      (* if hole vertex is already covered, ignore it *)
-      if dislikes_per_hole.(idx) = 0
-      then best
-      else (
-        let distance = Point.distance pt hole_pt |> Bignum.to_int_exn in
-        Int.min distance best))
+  let hole_vertices =
+    Array.filteri t.hole_polygon ~f:(fun idx _ ->
+        (* if hole vertex is already covered, ignore it *)
+        dislikes_per_hole.(idx) > 0)
+  in
+  List.map pts ~f:(fun pt ->
+      (* find min distance to some hole vertex *)
+      let d =
+        Array.fold ~init:Int.max_value hole_vertices ~f:(fun best hole_pt ->
+            let distance = Point.distance pt hole_pt |> Bignum.to_int_exn in
+            Int.min distance best)
+      in
+      d, pt)
+  |> List.sort ~compare:(fun (d1, _) (d2, _) -> Int.compare d1 d2)
+  |> List.map ~f:snd
 ;;

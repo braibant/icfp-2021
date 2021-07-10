@@ -96,12 +96,7 @@ let find_alternative_positions_for_vertex
     | [ aps ] -> aps
     | aps :: apss -> List.fold_left apss ~init:aps ~f:(fun acc aps -> Set.inter acc aps)
   in
-  Set.to_list res
-  |> List.map ~f:(fun p ->
-         (* find min distance to some hole vertex *)
-         Pose.find_min_distance_to_hole_vertices pose p, p)
-  |> List.sort ~compare:(fun (d1, _) (d2, _) -> Int.compare d1 d2)
-  |> List.map ~f:snd
+  Set.to_list res |> Pose.sort_by_min_distance_to_hole_vertices pose
 ;;
 
 let rec recursive_run t =
