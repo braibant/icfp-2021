@@ -4,5 +4,6 @@
   core
   bignum
   tiny_json
-  )
+ )
+  (inline_tests)
  (preprocess (pps ppx_jane)))

@@ -4,11 +4,9 @@ type t = (Bignum.t * Bignum.t) list Int.Map.t Int.Map.t [@@deriving sexp]
 
 let empty = Int.Map.empty
 
-let compute_offsets (prob : Problem.t) ~a ~b =
+let compute_offsets epsilon ~a ~b =
   let offsets = ref [] in
-  let a = List.nth_exn prob.figure_vertices a in
-  let b = List.nth_exn prob.figure_vertices b in
-  let tolerance = Bignum.(prob.epsilon / million) in
+  let tolerance = Bignum.(epsilon / million) in
   let orig_len = Point.distance a b in
   let min_len = Bignum.(orig_len * (one - tolerance)) in
   let max_len = Bignum.(orig_len * (one + tolerance)) in
@@ -29,10 +27,36 @@ let compute_offsets (prob : Problem.t) ~a ~b =
   !offsets
 ;;
 
+let%expect_test "offsets" =
+  let offsets =
+    Bignum.(
+      compute_offsets
+        (of_int 100_000)
+        ~a:(Point.create ~x:one ~y:one)
+        ~b:(Point.create ~x:ten ~y:ten))
+  in
+  printf !"%{sexp: (Bignum.t * Bignum.t) list}\n" offsets;
+  [%expect {|
+    ((13 3) (-13 3) (13 -3) (-13 -3) (13 2) (-13 2) (13 -2) (-13 -2) (13 1)
+     (-13 1) (13 -1) (-13 -1) (13 0) (-13 0) (13 0) (-13 0) (12 5) (-12 5)
+     (12 -5) (-12 -5) (12 4) (-12 4) (12 -4) (-12 -4) (12 3) (-12 3) (12 -3)
+     (-12 -3) (12 2) (-12 2) (12 -2) (-12 -2) (11 7) (-11 7) (11 -7) (-11 -7)
+     (11 6) (-11 6) (11 -6) (-11 -6) (11 5) (-11 5) (11 -5) (-11 -5) (10 8)
+     (-10 8) (10 -8) (-10 -8) (10 7) (-10 7) (10 -7) (-10 -7) (9 9) (-9 9)
+     (9 -9) (-9 -9) (8 10) (-8 10) (8 -10) (-8 -10) (7 11) (-7 11) (7 -11)
+     (-7 -11) (7 10) (-7 10) (7 -10) (-7 -10) (6 11) (-6 11) (6 -11) (-6 -11)
+     (5 12) (-5 12) (5 -12) (-5 -12) (5 11) (-5 11) (5 -11) (-5 -11) (4 12)
+     (-4 12) (4 -12) (-4 -12) (3 13) (-3 13) (3 -13) (-3 -13) (3 12) (-3 12)
+     (3 -12) (-3 -12) (2 13) (-2 13) (2 -13) (-2 -13) (2 12) (-2 12) (2 -12)
+     (-2 -12) (1 13) (-1 13) (1 -13) (-1 -13) (0 13) (0 13) (0 -13) (0 -13)) |}]
+;;
+
 let create (prob : Problem.t) =
   printf "Creating alternative offsets...\n%!";
   List.fold_left prob.figure_edges ~init:Int.Map.empty ~f:(fun t (a, b) ->
-      let offsets = compute_offsets prob ~a ~b in
+      let pa = List.nth_exn prob.figure_vertices a in
+      let pb = List.nth_exn prob.figure_vertices b in
+      let offsets = compute_offsets prob.epsilon ~a:pa ~b:pb in
       let t =
         Map.update t a ~f:(fun xs ->
             let xs = Option.value xs ~default:Int.Map.empty in
