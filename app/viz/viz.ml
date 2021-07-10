@@ -13,19 +13,40 @@ let draw_bg () =
   G.draw_string "ICFP 2021"
 ;;
 
+module Operation = struct
+  type t =
+    | Pick_up of int * Point.t (* we picked up [i]th point at Point.t *)
+    | Move of (int * Point.t * Point.t)
+  (* we moved [i]th point from Point.t to Point.t *)
+end
+
 module State = struct
   type t =
     { selected_vertex : int option
     ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
+    ; history : Operation.t list
     }
 
   let create ~pose =
-    { selected_vertex = None; pose; manually_frozen_vertices = Int.Set.empty }
+    { selected_vertex = None
+    ; pose
+    ; manually_frozen_vertices = Int.Set.empty
+    ; history = []
+    }
   ;;
 
   let shift t (dx, dy) =
     if dx = 0 && dy = 0 then t else { t with pose = Pose.shift t.pose (dx, dy) }
+  ;;
+
+  let undo t =
+    match t.history with
+    | [] -> t
+    | Pick_up _ :: rest -> { t with history = rest }
+    | Move (idx, from_, _) :: rest ->
+      printf !"UNDO: move of point %d from %{sexp:Point.t}\n" idx from_;
+      { t with history = rest; pose = Pose.move t.pose idx ~to_:from_ }
   ;;
 end
 
@@ -127,9 +148,24 @@ let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_
         in
         (match res with
         | None -> { state with selected_vertex = None }
-        | Some idx -> { state with selected_vertex = Some idx }))
+        | Some idx ->
+          { state with
+            selected_vertex = Some idx
+          ; history =
+              Operation.Pick_up (idx, Map.find_exn (Pose.vertices state.pose) idx)
+              :: state.history
+          }))
   in
-  if space_pressed then { state with selected_vertex = None } else state
+  if space_pressed
+  then (
+    let history =
+      match state.history with
+      | Pick_up (idx, from_) :: rest ->
+        Operation.Move (idx, from_, Map.find_exn (Pose.vertices state.pose) idx) :: rest
+      | _ -> state.history
+    in
+    { state with selected_vertex = None; history })
+  else state
 ;;
 
 let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height =
@@ -381,6 +417,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press AWSD to shift");
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
+  draw_bottom_text (sprintf !"Press z to undo");
   state
 ;;
 
@@ -399,6 +436,7 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
   let s_pressed = ref false in
   let f_pressed = ref false in
   let g_pressed = ref false in
+  let z_pressed = ref false in
   let shift = ref (0, 0) in
   let () =
     while G.key_pressed () do
@@ -414,6 +452,7 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
       | 'o' -> show_alternative_offsets := true
       | 'O' -> show_alternative_offsets := false
       | 'G' -> g_pressed := true
+      | 'z' -> z_pressed := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -426,6 +465,7 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
     then printf "WARNING: Invalid edges: %d\n%!" (List.length invalid_edges));
   draw_bg ();
   let state = State.shift state !shift in
+  let state = if !z_pressed then State.undo state else state in
   let state =
     draw_problem
       ~wall_x:10
