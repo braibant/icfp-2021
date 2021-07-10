@@ -38,17 +38,27 @@ let create ~initial_pose ~manually_frozen_vertices =
 ;;
 
 let run t ~steps_to_do:_ =
-  let next_vertex =
-    Set.find t.vertices_left ~f:(fun a ->
-        let edges = Map.find t.vertex_edges a |> Option.value ~default:[] in
-        let connected_vertices = List.map edges ~f:snd in
-        List.length (List.filter connected_vertices ~f:(Set.mem t.frozen_vertices)) > 1)
-  in
-  match next_vertex with
-  | None ->
-    printf "ERROR: Solver ran out of nodes to consider\n%!";
-    t
-  | Some next_vertex ->
-    printf "Solver trying to fix %d\n%!" next_vertex;
-    t
+  if Set.is_empty t.vertices_left
+  then t
+  else (
+    let next_vertex, _conns, num_conns =
+      List.map (Set.to_list t.vertices_left) ~f:(fun a ->
+          let edges = Map.find t.vertex_edges a |> Option.value ~default:[] in
+          let connected_vertices = List.map edges ~f:snd in
+          let frozen_connections =
+            List.filter connected_vertices ~f:(Set.mem t.frozen_vertices)
+          in
+          a, frozen_connections, List.length frozen_connections)
+      |> List.sort ~compare:(fun (_, _, conns1) (_, _, conns2) ->
+             Int.descending conns1 conns2)
+      |> List.hd_exn
+    in
+    printf
+      "Solver trying to fix vertex %d with %d frozen connections\n%!"
+      next_vertex
+      num_conns;
+    (* CR scvalex: Compute the set of all possible indices for this
+       vertex by intersecting the sets of alternative offsets for all
+       the connected frozen vertices. *)
+    t)
 ;;
