@@ -218,7 +218,6 @@ let incremental_dfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
           let vertices_left = Set.remove t.vertices_left vertex in
           let updated_t = { t with pose; frozen_vertices; vertices_left } in
           let cur_frame =
-            (* CR scvalex: Should this solver_t be t or updated_t? *)
             Stack_frame.
               { solver_t = t
               ; vertex
@@ -372,7 +371,6 @@ let incremental_bfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
           let vertices_left = Set.remove t.vertices_left vertex in
           let updated_t = { t with pose; frozen_vertices; vertices_left } in
           let cur_frame =
-            (* CR scvalex: Should this solver_t be t or updated_t? *)
             Stack_frame.{ solver_t = t; vertex; alternative_positions = rest_aps; queue }
           in
           if Set.is_empty vertices_left
