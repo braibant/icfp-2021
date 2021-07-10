@@ -434,7 +434,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
   draw_bottom_text (sprintf !"Press z to undo");
-  draw_bottom_text (sprintf !"Press v to snap to closes hole vertex");
+  draw_bottom_text (sprintf !"Press v to snap to closest hole vertex");
   state
 ;;
 
