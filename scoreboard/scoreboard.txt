@@ -1,3 +1,4 @@
+Sat 10 Jul 01:08:41 BST 2021
    ICFPC2021problemsscores
    login
 
@@ -8,45 +9,45 @@
    2     Aim Tech + Godnotent                    402962 
    3     Special Weekend                         384391 
    4     Unagi                                   349257 
-   5     All In                                  335422 
-   6     chirijako                               328229 
+   5     chirijako                               348306 
+   6     All In                                  335422 
    7     manarimo                                279535 
    8     CowDay                                  276938 
    9     DiamondPrincess                         243776 
    10    301                                     225838 
    11    Rotten Lambdas                          225525 
    12    Sosuupoyo(sugoi)                        191861 
-   13    udfew                                   186636 
-   14    Powder                                  178743 
-   15    mutability                              159198 
-   16    iehn                                    159117 
-   17    All your poses are belong to us         156235 
-   18    Olympia                                 155462 
+   13    Powder                                  186847 
+   14    udfew                                   186636 
+   15    Olympia                                 167886 
+   16    mutability                              159198 
+   17    iehn                                    159117 
+   18    All your poses are belong to us         156235 
    19    WILD BASHKORT MAGES                     154864 
-   20    Channable                               151179 
-   21    trup16                                  146966 
+   20    trup16                                  151446 
+   21    Channable                               151179 
    22    Nik & Tonsky                            143936 
    23    sanma                                   138466 
-   24    paiv                                    120191 
-   25    cwfork                                  117510 
-   26    Raging Mushrooms                        115745 
+   24    Raging Mushrooms                        122745 
+   25    paiv                                    120191 
+   26    cwfork                                  117510 
    27    Folding at home                         112565 
    28    Side Effects May Include...             111002 
    29    ksmlb                                   110775 
-   30    Snakes, Monkeys and Two Smoking Lambdas 97505  
-   31    We didn't mean to use Python            90330  
+   30    We didn't mean to use Python            105606 
+   31    Snakes, Monkeys and Two Smoking Lambdas 97699  
    32    jabber.ru                               78777  
    33    h25                                     76402  
    34    negainoido                              74553  
    35    Sjoerd Visscher                         67901  
    36    LILiK                                   63749  
    37    blue-poser                              63441  
-   38    Gon the Fox                             57546  
-   39    THIRTEEN                                56550  
-   40    bowwowforeach                           53977  
-   41    Skobochka                               50969  
-   42    okaduki                                 50833  
-   43    pegovka                                 50763  
+   38    Skobochka                               59393  
+   39    Gon the Fox                             57546  
+   40    THIRTEEN                                56550  
+   41    bowwowforeach                           53977  
+   42    pegovka                                 53848  
+   43    okaduki                                 50833  
    44    IKS                                     48101  
    45    Overfull \hbox                          45681  
    46    Yoshida Chicken Rice                    42691  
@@ -77,11 +78,11 @@
    71    uni                                     12967  
    72    Sal's Pals                              12668  
    73    Bottle kids!                            12668  
-   74    georgia                                 12131  
-   75    Free Tacos                              11645  
-   76    srush                                   10270  
-   77    lost in sente                           9021   
-   78    Egér a marson                           8925   
+   74    Egér a marson                           12341  
+   75    georgia                                 12131  
+   76    Free Tacos                              11645  
+   77    srush                                   10270  
+   78    lost in sente                           9021   
    79    Vanilla Bears                           8833   
    80    team classified                         8586   
    81    グレースたなか                                 7816   
