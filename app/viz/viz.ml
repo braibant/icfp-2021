@@ -191,6 +191,8 @@ let draw_problem
     ~mouse_clicked
     ~space_pressed
     ~f_pressed
+    ~alternative_offsets
+    ~show_alternative_offsets
     ~state
   =
   let prob = Pose.problem state.pose in
@@ -323,19 +325,31 @@ let draw_problem
       let connected_points =
         List.filter_map prob.figure_edges ~f:(fun ((idx1, idx2) as edge) ->
             if idx1 = selected_vertex
-            then Some (idx2, Pose.min_max_length_sq_for_edge state.pose edge)
+            then Some (idx2, idx1, Pose.min_max_length_sq_for_edge state.pose edge)
             else if idx2 = selected_vertex
-            then Some (idx1, Pose.min_max_length_sq_for_edge state.pose edge)
+            then Some (idx1, idx2, Pose.min_max_length_sq_for_edge state.pose edge)
             else None)
       in
-      List.iter connected_points ~f:(fun (point_idx, (min_edge_sq, max_edge_sq)) ->
-          let point_x, point_y =
-            figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) point_idx)
-          in
+      List.iter
+        connected_points
+        ~f:(fun (point_idx, other_idx, (min_edge_sq, max_edge_sq)) ->
+          let point = Int.Map.find_exn (Pose.vertices state.pose) point_idx in
+          let point_x, point_y = figure_to_wall_space point in
           G.set_color (G.rgb 150 150 0);
           G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
           G.set_color (G.rgb 255 255 0);
-          G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq))
+          G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq);
+          if show_alternative_offsets
+          then (
+            let alternative_offsets =
+              Alternative_offsets.find alternative_offsets point_idx other_idx
+            in
+            List.iter alternative_offsets ~f:(fun (dx, dy) ->
+                let point_x, point_y =
+                  figure_to_wall_space
+                    (Point.create ~x:Bignum.(point.x + dx) ~y:Bignum.(point.y + dy))
+                in
+                G.fill_rect (point_x + (px / 2) - 1) (point_y + (px / 2) - 1) 3 3)))
     | None -> ()
   in
   (* Draw black squares around manually frozen vertices. *)
@@ -345,7 +359,7 @@ let draw_problem
         let point_x, point_y =
           figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) idx)
         in
-        G.draw_rect (point_x + (px / 2) - 5) (point_y + (px / 2) - 5) 10 10)
+        G.draw_rect (point_x + (px / 2) - 5) (point_y + (px / 2) - 5) 11 11)
   in
   (* Help text *)
   let draw_bottom_text =
@@ -361,6 +375,8 @@ let draw_problem
     fun str -> draw_bottom_text_gen ~x:300 ~wall_y ~bottom_text_count str
   in
   draw_bottom_text (sprintf !"Press AWSD to shift");
+  draw_bottom_text (sprintf !"Press o to show alternative offsets");
+  draw_bottom_text (sprintf !"Press O to hide alternative offsets");
   state
 ;;
 
@@ -373,7 +389,7 @@ let get_mouse_pos () =
   else Some (mouse_x, mouse_y)
 ;;
 
-let rec interact ~state ~answer_filename =
+let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_offsets =
   let shutting_down = ref false in
   let space_pressed = ref false in
   let s_pressed = ref false in
@@ -390,6 +406,8 @@ let rec interact ~state ~answer_filename =
       | 'S' -> shift := 0, 1
       | 'D' -> shift := 1, 0
       | 'W' -> shift := 0, -1
+      | 'o' -> show_alternative_offsets := true
+      | 'O' -> show_alternative_offsets := false
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -412,17 +430,24 @@ let rec interact ~state ~answer_filename =
       ~mouse_clicked:(G.button_down ())
       ~space_pressed:!space_pressed
       ~f_pressed:!f_pressed
+      ~alternative_offsets
+      ~show_alternative_offsets:!show_alternative_offsets
       ~state
   in
   G.synchronize ();
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
-    interact ~state ~answer_filename)
+    interact ~state ~answer_filename ~alternative_offsets ~show_alternative_offsets)
 ;;
 
-let display ~filename ~answer_filename =
+let display ~filename ~answer_filename ~no_alternative_offsets =
   let prob = Problem.load_exn ~filename in
+  let alternative_offsets =
+    if no_alternative_offsets
+    then Alternative_offsets.empty
+    else Alternative_offsets.create prob
+  in
   let pose =
     match answer_filename with
     | None -> Pose.create prob
@@ -437,7 +462,13 @@ let display ~filename ~answer_filename =
   G.set_window_title "ICFPC 2021";
   G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
-  let () = interact ~state:(State.create ~pose) ~answer_filename in
+  let () =
+    interact
+      ~state:(State.create ~pose)
+      ~answer_filename
+      ~alternative_offsets
+      ~show_alternative_offsets:(ref false)
+  in
   G.close_graph ()
 ;;
 
@@ -451,8 +482,13 @@ let commands =
           (let%map_open filename = anon ("FILE" %: Filename.arg_type)
            and answer_filename =
              flag "-answer" (optional string) ~doc:"FILE File containing an answer"
+           and no_alternative_offsets =
+             flag
+               "-no-alternative-offsets"
+               no_arg
+               ~doc:" Don't compute alternative offsets"
            in
-           fun () -> display ~filename ~answer_filename) )
+           fun () -> display ~filename ~answer_filename ~no_alternative_offsets) )
     ]
 ;;
 
