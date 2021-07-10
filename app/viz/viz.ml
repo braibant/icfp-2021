@@ -341,6 +341,10 @@ let draw_problem
           G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq);
           if show_alternative_offsets
           then (
+            let r = 55 + (Int.hash point_idx mod 200) in
+            let g = 55 + (Int.hash other_idx mod 200) in
+            let b = 100 + (75 / (1 + point_idx)) in
+            G.set_color (G.rgb r g b);
             let alternative_offsets =
               Alternative_offsets.find alternative_offsets point_idx other_idx
             in
