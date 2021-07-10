@@ -38,25 +38,30 @@ Or, https://github.com/substack/point-in-polygon, which derives from the same so
  *)
 
 let contains (t : t) (pt : Point.t) =
-  let x = pt.x in
-  let y = pt.y in
-  let c = ref false in
-  let i = ref 0 in
-  let j = ref (Array.length t - 1) in
-  while !i < Array.length t do
-    let open Bignum in
-    let xi = t.(!i).x in
-    let yi = t.(!i).y in
-    let xj = t.(!j).x in
-    let yj = t.(!j).y in
-    let intersect =
-      Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
-    in
-    if intersect then c := not !c;
-    j := !i;
-    i := Int.(!i + 1)
-  done;
-  !c
+  (* CR scvalex: Hacky hack *)
+  let is_one_of_the_vertices = Array.exists t ~f:(fun vertex -> Point.equal pt vertex) in
+  if is_one_of_the_vertices
+  then true
+  else (
+    let x = pt.x in
+    let y = pt.y in
+    let c = ref false in
+    let i = ref 0 in
+    let j = ref (Array.length t - 1) in
+    while !i < Array.length t do
+      let open Bignum in
+      let xi = t.(!i).x in
+      let yi = t.(!i).y in
+      let xj = t.(!j).x in
+      let yj = t.(!j).y in
+      let intersect =
+        Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
+      in
+      if intersect then c := not !c;
+      j := !i;
+      i := Int.(!i + 1)
+    done;
+    !c)
 ;;
 
 let intersect_segment (t : t) s1 =
@@ -114,6 +119,6 @@ module Testing = struct
 
   let%test _ =
     let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
-    contains polygon (point 0 0)
+    contains polygon (point 0 4)
   ;;
 end
