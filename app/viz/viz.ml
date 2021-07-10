@@ -16,11 +16,13 @@ let draw_bg () =
 module State = struct
   type t =
     { selected_vertex : int option
-    ; frozen_vertices : int list (* CR scvalex: Actually use frozen_vertices. *)
+    ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
     }
 
-  let create ~pose = { selected_vertex = None; pose; frozen_vertices = [] }
+  let create ~pose =
+    { selected_vertex = None; pose; manually_frozen_vertices = Int.Set.empty }
+  ;;
 end
 
 open State
@@ -71,6 +73,19 @@ let draw_bottom_text ~wall_y ~bottom_text_count str =
   G.draw_string str
 ;;
 
+let find_vertex_near_mouse state ~mouse_x ~mouse_y =
+  let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
+  let idx, _ =
+    Map.fold
+      ~init:(-1, Bignum.million)
+      (Pose.vertices state.pose)
+      ~f:(fun ~key:idx ~data:v (best, best_distance) ->
+        let d = Point.distance v mouse_point in
+        if Bignum.(d < best_distance) then idx, d else best, best_distance)
+  in
+  if idx = -1 then None else Some idx
+;;
+
 let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_pressed =
   let state =
     match mouse_clicked with
@@ -103,17 +118,7 @@ let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_
       | None ->
         let res =
           match mouse_x, mouse_y with
-          | Some mouse_x, Some mouse_y ->
-            let mouse_point = Point.create ~x:mouse_x ~y:mouse_y in
-            let selected_idx, _distance =
-              Map.fold
-                ~init:(-1, Bignum.million)
-                (Pose.vertices state.pose)
-                ~f:(fun ~key:idx ~data:v (best, best_distance) ->
-                  let d = Point.distance v mouse_point in
-                  if Bignum.(d < best_distance) then idx, d else best, best_distance)
-            in
-            Some selected_idx
+          | Some mouse_x, Some mouse_y -> find_vertex_near_mouse state ~mouse_x ~mouse_y
           | _, _ -> None
         in
         (match res with
@@ -145,6 +150,24 @@ let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
     else None, None
 ;;
 
+let update_manually_frozen_vertices state ~mouse_x ~mouse_y =
+  match state.selected_vertex with
+  | Some _ -> state
+  | None ->
+    (match mouse_x, mouse_y with
+    | None, _ | _, None -> state
+    | Some mouse_x, Some mouse_y ->
+      (match find_vertex_near_mouse state ~mouse_x ~mouse_y with
+      | None -> state
+      | Some idx ->
+        let manually_frozen_vertices =
+          if Set.mem state.manually_frozen_vertices idx
+          then Set.remove state.manually_frozen_vertices idx
+          else Set.add state.manually_frozen_vertices idx
+        in
+        { state with manually_frozen_vertices }))
+;;
+
 (* Draw the hole, figure, and various info.  Note that the coordinate
    system is (0, 0) in the bottom left corner and growing rightwards
    and upwards.
@@ -163,7 +186,7 @@ let draw_problem
     ~mouse
     ~mouse_clicked
     ~space_pressed
-    ~f_pressed:_
+    ~f_pressed
     ~state
   =
   let prob = Pose.problem state.pose in
@@ -201,6 +224,11 @@ let draw_problem
     (sprintf !"Mouse Y: %{Bignum#hum}" (Option.value mouse_y ~default:Bignum.zero));
   let state =
     update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_pressed
+  in
+  let state =
+    match f_pressed with
+    | false -> state
+    | true -> update_manually_frozen_vertices state ~mouse_x ~mouse_y
   in
   draw_right_text
     (sprintf !"Selected vrtx: %d" (Option.value state.selected_vertex ~default:~-1));
@@ -304,6 +332,15 @@ let draw_problem
           G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
           G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq))
     | None -> ()
+  in
+  (* Draw black squares around manually frozen vertices. *)
+  G.set_color G.black;
+  let () =
+    Int.Set.iter state.manually_frozen_vertices ~f:(fun idx ->
+        let point_x, point_y =
+          figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) idx)
+        in
+        G.draw_rect (point_x + (px / 2) - 5) (point_y + (px / 2) - 5) 10 10)
   in
   (* Help text *)
   let draw_bottom_text =
