@@ -168,9 +168,9 @@ let draw_right_text ~wall_x ~wall_y ~wall_width ~wall_height ~right_text_count s
   G.draw_string str
 ;;
 
-let draw_bottom_text_gen ~x ~wall_y ~bottom_text_count str =
+let draw_bottom_text ~x ~wall_y ~bottom_text_count str =
   G.set_color G.white;
-  G.moveto x (wall_y - 20 - (15 * !bottom_text_count));
+  G.moveto x (wall_y - 20 - (15 * (!bottom_text_count mod 4)));
   incr bottom_text_count;
   G.draw_string str
 ;;
@@ -447,16 +447,17 @@ let draw_problem
   (* Help text *)
   let draw_bottom_text =
     let bottom_text_count = ref 0 in
-    fun str -> draw_bottom_text_gen ~x:10 ~wall_y ~bottom_text_count str
+    fun str ->
+      draw_bottom_text
+        ~x:(10 + (290 * (!bottom_text_count / 4)))
+        ~wall_y
+        ~bottom_text_count
+        str
   in
   draw_bottom_text (sprintf !"Click to select vertex");
   draw_bottom_text (sprintf !"Press SPACE to deselect vertex");
   draw_bottom_text (sprintf !"Press s to save");
   draw_bottom_text (sprintf !"Press f to freeze highlighted vertex");
-  let draw_bottom_text =
-    let bottom_text_count = ref 0 in
-    fun str -> draw_bottom_text_gen ~x:300 ~wall_y ~bottom_text_count str
-  in
   draw_bottom_text (sprintf !"Press AWSD to shift");
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
