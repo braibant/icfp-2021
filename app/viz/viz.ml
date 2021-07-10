@@ -179,6 +179,13 @@ module State = struct
     ; history = Move_points t.pose :: t.history
     }
   ;;
+
+  let freeze_all t =
+    { t with
+      manually_frozen_vertices = Pose.vertices t.pose |> Map.keys |> Int.Set.of_list
+    ; history = Change_frozen t.manually_frozen_vertices :: t.history
+    }
+  ;;
 end
 
 open State
@@ -517,6 +524,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press SPACE to deselect vertex");
   draw_bottom_text (sprintf !"Press s to save");
   draw_bottom_text (sprintf !"Press f to freeze highlighted vertex");
+  draw_bottom_text (sprintf !"Press F to freeze ALL vertices");
   draw_bottom_text (sprintf !"Press AWSD to shift");
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
@@ -559,6 +567,7 @@ let rec interact
   let fit_pressed = ref false in
   let reset_pressed = ref false in
   let random_pressed = ref false in
+  let freeze_all_pressed = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -569,6 +578,7 @@ let rec interact
       | ' ' -> space_pressed := true
       | 's' -> s_pressed := true
       | 'f' -> f_pressed := true
+      | 'F' -> freeze_all_pressed := true
       | 'A' -> shift := -1, 0
       | 'S' -> shift := 0, 1
       | 'D' -> shift := 1, 0
@@ -603,6 +613,7 @@ let rec interact
   let state = if !reset_pressed then State.reset state else state in
   let state = if !fit_pressed then State.fit_unique_edge state else state in
   let state = if !random_pressed then State.randomize state else state in
+  let state = if !freeze_all_pressed then State.freeze_all state else state in
   let state =
     draw_problem
       ~wall_x:10
