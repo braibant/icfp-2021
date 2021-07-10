@@ -1,10 +1,15 @@
 open! Core
 
-type t =
-  { x : Bignum.t
-  ; y : Bignum.t
-  }
-[@@deriving fields, sexp]
+module T = struct
+  type t =
+    { x : Bignum.t
+    ; y : Bignum.t
+    }
+  [@@deriving compare, fields, sexp]
+end
+
+include T
+include Comparable.Make (T)
 
 let create = Fields.create
 let distance a b = Bignum.(((a.x - b.x) ** 2) + ((a.y - b.y) ** 2))
