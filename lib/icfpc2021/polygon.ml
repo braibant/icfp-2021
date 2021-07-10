@@ -2,6 +2,7 @@ open! Core
 
 type t = Point.t array
 
+let of_vertices l = Array.of_list l
 (*
 https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
 ```
@@ -65,7 +66,8 @@ let intersect_segment (t : t) s1 =
     let pa = t.(!i mod Array.length t) in
     let pb = t.((!i + 1) mod Array.length t) in
     let s2 = Segment.create pa pb in
-    intersect := Segment.intersect s1 s2
+    intersect := Segment.intersect s1 s2;
+    i := !i + 1
   done;
   !intersect
 ;;
@@ -96,5 +98,17 @@ module Testing = struct
   let%test _ =
     let polygon = polygon [ 0, 0; 2, 0; 4, 2; 2, 2; 0, 0 ] in
     contains polygon (point 2 1)
+  ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 2; 2, 2; 2, 0; 0, 0 ] in
+    let segment = Segment.create (point 1 1) (point 1 3) in
+    intersect_segment polygon segment
+  ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
+    let segment = Segment.create (point 1 1) (point 1 3) in
+    not (intersect_segment polygon segment)
   ;;
 end
