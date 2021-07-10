@@ -37,8 +37,10 @@ module State = struct
   ;;
 
   let reset t =
-    { t with
-      history = Move_points t.pose :: t.history
+    { history =
+        Change_frozen t.manually_frozen_vertices :: Move_points t.pose :: t.history
+    ; manually_frozen_vertices = Int.Set.empty
+    ; selected_vertex = None
     ; pose = Pose.set_vertices t.pose (Pose.problem t.pose).Problem.figure_vertices
     }
   ;;
