@@ -8,21 +8,6 @@ type t =
 
 let create a b = Fields.create ~a ~b
 
-(* Checkt that [point] belong to the segment, PROVIDED that we have checked that
-   the three points are aligned. Scale is a hack to avoid having to deal with
-   the fact that the points of interest have rational coordinates. *)
-let contains { a; b } scale (point : Point.t) =
-  let open Bignum in
-  let minx = min a.x b.x in
-  let maxx = max a.x b.x in
-  let miny = min a.y b.y in
-  let maxy = max a.y b.y in
-  scale * minx <= point.x
-  && point.x <= scale * maxx
-  && scale * miny <= point.y
-  && point.y <= scale * maxy
-;;
-
 (* https://bryceboe.com/2006/10/23/line-segment-intersection-algorithm/ *)
 let ccw (a : Point.t) (b : Point.t) (c : Point.t) =
   let open Bignum in
@@ -48,8 +33,9 @@ let distance =
     then dist2 point segment.a
     else (
       let t =
-        ((point.x - segment.a.x) * (segment.b.x - segment.a.x))
-        + ((point.y - segment.a.y) * (segment.b.y - segment.a.y) / l2)
+        (((point.x - segment.a.x) * (segment.b.x - segment.a.x))
+        + ((point.y - segment.a.y) * (segment.b.y - segment.a.y)))
+        / l2
       in
       let t = max zero (min one t) in
       let projection =
@@ -63,6 +49,8 @@ let distance =
     Float.sqrt (Bignum.to_float (distance_to_segment_squared segment point))
 ;;
 
+let contains segment point = Float.(abs (distance segment point) <= 0.00001)
+
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
   let segment = create
@@ -70,17 +58,17 @@ module Testing = struct
 
   let%test _ =
     let a = segment (point 0 0) (point 0 2) in
-    contains a Bignum.one (point 0 1)
+    contains a (point 0 1)
   ;;
 
   let%test _ =
     let a = segment (point 0 0) (point 2 2) in
-    contains a Bignum.one (point 1 1)
+    contains a (point 1 1)
   ;;
 
   let%test _ =
     let a = segment (point 0 0) (point 1 1) in
-    contains a (Bignum.of_int 2) (point 1 1)
+    contains a (point 1 1)
   ;;
 
   let%test _ =
