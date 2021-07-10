@@ -521,7 +521,7 @@ let rec interact
   in
   let solver = if !stop_solver then None else solver in
   let state, solver =
-    if !start_solver
+    if !start_solver && Option.is_none solver
     then (
       let solver =
         Solver.create
