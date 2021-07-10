@@ -111,4 +111,9 @@ module Testing = struct
     let segment = Segment.create (point 1 1) (point 1 3) in
     not (intersect_segment polygon segment)
   ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
+    contains polygon (point 0 0)
+  ;;
 end
