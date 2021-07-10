@@ -26,4 +26,10 @@ case "$1" in
         fi
         curl -X GET "${SERVER}/api/problems/$2" -H "Authorization: Bearer ${API_KEY}"
         ;;
+    send)
+        if [[ $# -lt 3 ]]; then
+            usage
+        fi
+        curl -X POST "${SERVER}/api/problems/$2/solutions" -H "Authorization: Bearer ${API_KEY}" -H "Content-Type: application/json" --data @"${3}"
+        ;;
 esac
