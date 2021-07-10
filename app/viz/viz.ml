@@ -36,6 +36,13 @@ module State = struct
     }
   ;;
 
+  let reset t =
+    { t with
+      history = Move_points t.pose :: t.history
+    ; pose = Pose.set_vertices t.pose (Pose.problem t.pose).Problem.figure_vertices
+    }
+  ;;
+
   let shift t (dx, dy) =
     if dx = 0 && dy = 0 then t else { t with pose = Pose.shift t.pose (dx, dy) }
   ;;
@@ -466,6 +473,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press | to reflect vertically");
   draw_bottom_text (sprintf !"Press > to rotate clockwise");
   draw_bottom_text (sprintf !"Press = to print edge that matches hole edge");
+  draw_bottom_text (sprintf !"Press R to reset the problem");
   state
 ;;
 
@@ -495,6 +503,7 @@ let rec interact
   let vbar_pressed = ref false in
   let rotate_pressed = ref false in
   let fit_pressed = ref false in
+  let reset_pressed = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -516,6 +525,7 @@ let rec interact
       | '|' -> vbar_pressed := true
       | '>' -> rotate_pressed := true
       | '=' -> fit_pressed := true
+      | 'R' -> reset_pressed := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
@@ -534,6 +544,7 @@ let rec interact
   let state = if !v_pressed then State.snap_to_closest state else state in
   let state = if !vbar_pressed then State.reflect_vertical state else state in
   let state = if !rotate_pressed then State.rotate state else state in
+  let state = if !reset_pressed then State.reset state else state in
   if !fit_pressed then Pose.find_pose_edge_that_matches_hole_edge state.pose;
   let state =
     draw_problem

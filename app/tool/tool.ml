@@ -26,6 +26,15 @@ let commands =
           (let%map_open filename = anon ("FILE" %: Filename.arg_type)
            and dislikes = anon ("DISLIKES" %: float) in
            fun () -> score filename dislikes) )
+    ; ( "dislikes"
+      , Command.basic
+          ~summary:"compute dislikes"
+          (let%map_open problem = anon ("PROBLEM" %: Filename.arg_type)
+           and answer = anon ("ANSWER" %: Filename.arg_type) in
+           fun () ->
+             let problem = Problem.load_exn ~filename:problem in
+             let pose = Pose.load_exn ~problem ~filename:answer in
+             printf "%d\n" (Pose.dislikes pose)) )
     ]
 ;;
 
