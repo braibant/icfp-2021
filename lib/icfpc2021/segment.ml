@@ -40,7 +40,7 @@ let distance =
       let t = max zero (min one t) in
       let projection =
         let x = segment.a.x + (t * (segment.b.x - segment.a.x)) in
-        let y = segment.a.x + (t * (segment.b.y - segment.a.y)) in
+        let y = segment.a.y + (t * (segment.b.y - segment.a.y)) in
         Point.create ~x ~y
       in
       dist2 point projection)
@@ -50,6 +50,7 @@ let distance =
 ;;
 
 let contains segment point = Float.(abs (distance segment point) <= 0.00001)
+let contains_segment segment ~other = contains segment other.a && contains segment other.b
 
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
@@ -80,6 +81,27 @@ module Testing = struct
   let%test _ =
     let s = segment (point 0 0) (point 0 2) in
     distance s (point 1 1) == 1.0
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    distance s (point 0 10) == 0.0
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    distance s (point 10 10) == 0.0
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    contains_segment s ~other:s
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    let h = segment (point 5 10) (point 10 10) in
+    contains_segment s ~other:h
   ;;
 
   let%test _ =
