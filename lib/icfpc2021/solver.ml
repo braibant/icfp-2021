@@ -122,6 +122,9 @@ let rec recursive_run t =
       | [] -> `Failed
       | pos :: rest_aps ->
         let pose = Pose.move t.pose next_vertex ~to_:pos in
+        (* CR scvalex: Check that all edges connecting next_vertex to
+           the frozen_vertices in the new pose are inside the
+           polygon. *)
         let frozen_vertices = Set.add t.frozen_vertices next_vertex in
         let vertices_left = Set.remove t.vertices_left next_vertex in
         let t = { t with pose; frozen_vertices; vertices_left } in
@@ -214,6 +217,9 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
       | [] -> `Failed work_to_do
       | pos :: rest_aps ->
         let pose = Pose.move t.pose next_vertex ~to_:pos in
+        (* CR scvalex: Check that all edges connecting next_vertex to
+           the frozen_vertices in the new pose are inside the
+           polygon. *)
         let frozen_vertices = Set.add t.frozen_vertices next_vertex in
         let vertices_left = Set.remove t.vertices_left next_vertex in
         let updated_t = { t with pose; frozen_vertices; vertices_left } in

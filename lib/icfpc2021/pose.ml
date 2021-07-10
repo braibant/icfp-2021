@@ -5,6 +5,7 @@ type t =
   { problem : Problem.t
   ; vertices : Point.t Int.Map.t
   ; orig_lengths : Bignum.t Int_int.Map.t
+  ; hole_polygon : Polygon.t
   }
 [@@deriving fields]
 
@@ -18,6 +19,7 @@ let create problem =
           let to_p = List.nth_exn problem.figure_vertices to_ in
           (from_, to_), Point.distance from_p to_p)
       |> Int_int.Map.of_alist_exn
+  ; hole_polygon = Polygon.of_vertices problem.hole
   }
 ;;
 
@@ -98,12 +100,10 @@ let shift t (dx, dy) =
 ;;
 
 let edge_inside_hole t (a, b) =
-  let problem : Problem.t = t.problem in
-  let polygon = Polygon.of_vertices problem.hole in
   let pa = Map.find_exn t.vertices a in
   let pb = Map.find_exn t.vertices b in
   let the_edge = Segment.create pa pb in
-  Polygon.contains polygon pa
-  && Polygon.contains polygon pb
-  && not (Polygon.intersect_segment polygon the_edge)
+  Polygon.contains t.hole_polygon pa
+  && Polygon.contains t.hole_polygon pb
+  && not (Polygon.intersect_segment t.hole_polygon the_edge)
 ;;
