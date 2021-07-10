@@ -79,24 +79,18 @@ let contains t pt =
   on_perimeter || contains_excluding_perimeter t pt
 ;;
 
-let intersect_segment (t : t) s1 =
-  let i = ref 0 in
-  let intersect = ref false in
-  while (not !intersect) && !i < Array.length t do
-    let pa = t.(!i mod Array.length t) in
-    let pb = t.((!i + 1) mod Array.length t) in
-    let s2 = Segment.create pa pb in
-    intersect := Segment.intersect s1 s2;
-    i := !i + 1
-  done;
-  !intersect
+let number_of_intersections t s1 =
+  fold_edges
+    t
+    ~f:(fun acc other ->
+      if Segment.intersect s1 other
+         && not (Segment.contains other s1.a || Segment.contains other s1.b)
+      then acc + 1
+      else acc)
+    ~init:0
 ;;
 
-let on_perimeter (t : t) s1 =
-  fold_edges t ~f:(fun acc other -> acc || Segment.contains_segment s1 ~other) ~init:false
-;;
-
-let intersect_segment t s1 = if on_perimeter t s1 then false else intersect_segment t s1
+let intersect_segment t s1 = number_of_intersections t s1 > 0
 
 let distance t point =
   let distance =
