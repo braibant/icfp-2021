@@ -38,25 +38,30 @@ Or, https://github.com/substack/point-in-polygon, which derives from the same so
  *)
 
 let contains (t : t) (pt : Point.t) =
-  let x = pt.x in
-  let y = pt.y in
-  let c = ref false in
-  let i = ref 0 in
-  let j = ref (Array.length t - 1) in
-  while !i < Array.length t do
-    let open Bignum in
-    let xi = t.(!i).x in
-    let yi = t.(!i).y in
-    let xj = t.(!j).x in
-    let yj = t.(!j).y in
-    let intersect =
-      Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
-    in
-    if intersect then c := not !c;
-    j := !i;
-    i := Int.(!i + 1)
-  done;
-  !c
+  (* CR scvalex: Hacky hack *)
+  let is_one_of_the_vertices = Array.exists t ~f:(fun vertex -> Point.equal pt vertex) in
+  if is_one_of_the_vertices
+  then true
+  else (
+    let x = pt.x in
+    let y = pt.y in
+    let c = ref false in
+    let i = ref 0 in
+    let j = ref (Array.length t - 1) in
+    while !i < Array.length t do
+      let open Bignum in
+      let xi = t.(!i).x in
+      let yi = t.(!i).y in
+      let xj = t.(!j).x in
+      let yj = t.(!j).y in
+      let intersect =
+        Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
+      in
+      if intersect then c := not !c;
+      j := !i;
+      i := Int.(!i + 1)
+    done;
+    !c)
 ;;
 
 let intersect_segment (t : t) s1 =
@@ -70,6 +75,29 @@ let intersect_segment (t : t) s1 =
     i := !i + 1
   done;
   !intersect
+;;
+
+let fold_edges t ~f ~init =
+  let i = ref 0 in
+  let j = ref (Array.length t - 1) in
+  let acc = ref init in
+  while !i < Array.length t do
+    let s = Segment.create t.(!j) t.(!i) in
+    acc := f !acc s;
+    j := !i;
+    i := Int.(!i + 1)
+  done;
+  !acc
+;;
+
+let distance t point =
+  let distance =
+    fold_edges
+      t
+      ~f:(fun acc s -> Float.min (Segment.distance s point) acc)
+      ~init:Float.infinity
+  in
+  if contains t point then distance else -.distance
 ;;
 
 module Testing = struct
@@ -110,5 +138,18 @@ module Testing = struct
     let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
     let segment = Segment.create (point 1 1) (point 1 3) in
     not (intersect_segment polygon segment)
+  ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
+    contains polygon (point 0 4)
+  ;;
+
+  let ( == ) a b = Float.(abs (a - b) <= 0.00001)
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 2; 2, 2; 2, 0 ] in
+    let point = point 1 1 in
+    distance polygon point == 1.0
   ;;
 end

@@ -37,9 +37,36 @@ let intersect s1 s2 =
   Bool.(ccw a c d <> ccw b c d) && Bool.(ccw a b c <> ccw a b d)
 ;;
 
+(* https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment *)
+let distance =
+  let open Bignum in
+  let sqr x = x * x in
+  let dist2 (v : Point.t) (w : Point.t) = sqr (v.x - w.x) + sqr (v.y - w.y) in
+  let distance_to_segment_squared segment point =
+    let l2 = dist2 segment.a segment.b in
+    if l2 = zero
+    then dist2 point segment.a
+    else (
+      let t =
+        ((point.x - segment.a.x) * (segment.b.x - segment.a.x))
+        + ((point.y - segment.a.y) * (segment.b.y - segment.a.y) / l2)
+      in
+      let t = max zero (min one t) in
+      let projection =
+        let x = segment.a.x + (t * (segment.b.x - segment.a.x)) in
+        let y = segment.a.x + (t * (segment.b.y - segment.a.y)) in
+        Point.create ~x ~y
+      in
+      dist2 point projection)
+  in
+  fun segment point ->
+    Float.sqrt (Bignum.to_float (distance_to_segment_squared segment point))
+;;
+
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
   let segment = create
+  let ( == ) a b = Float.(abs (a - b) <= 0.00001)
 
   let%test _ =
     let a = segment (point 0 0) (point 0 2) in
@@ -60,5 +87,15 @@ module Testing = struct
     let a = segment (point 1 0) (point 1 2) in
     let b = segment (point 0 1) (point 2 1) in
     intersect a b
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 0) (point 0 2) in
+    distance s (point 1 1) == 1.0
+  ;;
+
+  let%test _ =
+    let s = segment (point 0 0) (point 0 2) in
+    distance s (point 2 1) == 2.0
   ;;
 end
