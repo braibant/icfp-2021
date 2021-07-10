@@ -77,6 +77,29 @@ let intersect_segment (t : t) s1 =
   !intersect
 ;;
 
+let fold_edges t ~f ~init =
+  let i = ref 0 in
+  let j = ref (Array.length t - 1) in
+  let acc = ref init in
+  while !i < Array.length t do
+    let s = Segment.create t.(!j) t.(!i) in
+    acc := f !acc s;
+    j := !i;
+    i := Int.(!i + 1)
+  done;
+  !acc
+;;
+
+let distance t point =
+  let distance =
+    fold_edges
+      t
+      ~f:(fun acc s -> Float.min (Segment.distance s point) acc)
+      ~init:Float.infinity
+  in
+  if contains t point then distance else -.distance
+;;
+
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
 
@@ -120,5 +143,13 @@ module Testing = struct
   let%test _ =
     let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
     contains polygon (point 0 4)
+  ;;
+
+  let ( == ) a b = Float.(abs (a - b) <= 0.00001)
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 2; 2, 2; 2, 0 ] in
+    let point = point 1 1 in
+    distance polygon point == 1.0
   ;;
 end
