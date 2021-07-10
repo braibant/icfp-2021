@@ -51,7 +51,7 @@ let contains (t : t) (pt : Point.t) =
     let intersect =
       Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
     in
-    if intersect then c := true;
+    if intersect then c := not !c;
     j := !i;
     i := Int.(!i + 1)
   done;
