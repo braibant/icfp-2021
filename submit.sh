@@ -15,19 +15,19 @@ function submit(){
     while IFS=, read -r p new
     do
         echo "Submitting problem ${p} (score ${new})"
-        echo ./api.sh send "$p" "problems/$p.answer.json"
+        ./api.sh send "$p" "problems/prob$p.answer.json"
     done 
 }
 
 case "$1" in
     improved)
         improved ;;
-    run)
+    submit)
         improved | submit;;
-    update)
+    save)
         update;;
     *)
-        echo "usage: $0 (improved|run|update)"
+        echo "usage: $0 (improved|submit|save)"
 esac
 
    
