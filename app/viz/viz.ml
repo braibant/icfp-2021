@@ -15,9 +15,9 @@ let draw_bg () =
 
 module Operation = struct
   type t =
-    | Pick_up of int * Point.t (* we picked up [i]th point at Point.t *)
-    | Move of (int * Point.t * Point.t)
-  (* we moved [i]th point from Point.t to Point.t *)
+    | Move_points of Pose.t (* we moved some point (manually or via solve) in this pose *)
+    | Change_frozen of Int.Set.t
+  (* we changed this set of frozen points *)
 end
 
 module State = struct
@@ -43,10 +43,9 @@ module State = struct
   let undo t =
     match t.history with
     | [] -> t
-    | Pick_up _ :: rest -> { t with history = rest }
-    | Move (idx, from_, _) :: rest ->
-      printf !"UNDO: move of point %d from %{sexp:Point.t}\n" idx from_;
-      { t with history = rest; pose = Pose.move t.pose idx ~to_:from_ }
+    | Move_points pose :: rest -> { t with history = rest; pose }
+    | Change_frozen manually_frozen_vertices :: rest ->
+      { t with history = rest; manually_frozen_vertices }
   ;;
 end
 
@@ -151,21 +150,10 @@ let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_
         | Some idx ->
           { state with
             selected_vertex = Some idx
-          ; history =
-              Operation.Pick_up (idx, Map.find_exn (Pose.vertices state.pose) idx)
-              :: state.history
+          ; history = Operation.Move_points state.pose :: state.history
           }))
   in
-  if space_pressed
-  then (
-    let history =
-      match state.history with
-      | Pick_up (idx, from_) :: rest ->
-        Operation.Move (idx, from_, Map.find_exn (Pose.vertices state.pose) idx) :: rest
-      | _ -> state.history
-    in
-    { state with selected_vertex = None; history })
-  else state
+  if space_pressed then { state with selected_vertex = None } else state
 ;;
 
 let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height =
@@ -200,12 +188,16 @@ let update_manually_frozen_vertices state ~mouse_x ~mouse_y =
       (match find_vertex_near_mouse state ~mouse_x ~mouse_y with
       | None -> state
       | Some idx ->
+        let old_frozen = state.manually_frozen_vertices in
         let manually_frozen_vertices =
           if Set.mem state.manually_frozen_vertices idx
           then Set.remove state.manually_frozen_vertices idx
           else Set.add state.manually_frozen_vertices idx
         in
-        { state with manually_frozen_vertices }))
+        { state with
+          manually_frozen_vertices
+        ; history = Operation.Change_frozen old_frozen :: state.history
+        }))
 ;;
 
 (* Draw the hole, figure, and various info.  Note that the coordinate
@@ -497,7 +489,10 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
         state
       | `Done solver ->
         printf "Solving done\n%!";
-        { state with pose = Solver.pose solver })
+        { state with
+          pose = Solver.pose solver
+        ; history = Move_points state.pose :: state.history
+        })
     else state
   in
   if not !shutting_down
