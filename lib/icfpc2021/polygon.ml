@@ -152,6 +152,12 @@ module Testing = struct
     contains polygon (point 0 2)
   ;;
 
+  let%test _ =
+    let polygon = polygon [ 10, 0; 10, 10; 0, 10; 10, 0 ] in
+    let segment = Segment.create (point 10 0) (point 10 10) in
+    not (intersect_segment polygon segment)
+  ;;
+
   let ( == ) a b = Float.(abs (a - b) <= 0.00001)
 
   let%test _ =

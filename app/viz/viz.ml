@@ -345,6 +345,17 @@ let draw_problem
         G.draw_segments [| x1, y1, x2, y2 |]
       with
       | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ());
+  G.set_line_width (Int.max 1 (px / 8));
+  List.iter prob.figure_edges ~f:(fun ((idx1, idx2) as edge) ->
+      if not (Pose.edge_inside_hole state.pose edge)
+      then (
+        G.set_color (G.rgb 100 50 100);
+        try
+          let x1, y1 = scaled_pose_vertices.(idx1) in
+          let x2, y2 = scaled_pose_vertices.(idx2) in
+          G.draw_segments [| x1, y1, x2, y2 |]
+        with
+        | _ -> failwithf "Failed to draw edge %d->%d" idx1 idx2 ()));
   G.set_line_width 1;
   (* Draw a yellow rectangle around the mouse's current "pixel" in
      figure space. *)
