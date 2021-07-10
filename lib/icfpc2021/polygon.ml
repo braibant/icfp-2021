@@ -37,31 +37,46 @@ Or, https://github.com/substack/point-in-polygon, which derives from the same so
     return inside;
  *)
 
-let contains (t : t) (pt : Point.t) =
-  (* CR scvalex: Hacky hack *)
-  let is_one_of_the_vertices = Array.exists t ~f:(fun vertex -> Point.equal pt vertex) in
-  if is_one_of_the_vertices
-  then true
-  else (
-    let x = pt.x in
-    let y = pt.y in
-    let c = ref false in
-    let i = ref 0 in
-    let j = ref (Array.length t - 1) in
-    while !i < Array.length t do
-      let open Bignum in
-      let xi = t.(!i).x in
-      let yi = t.(!i).y in
-      let xj = t.(!j).x in
-      let yj = t.(!j).y in
-      let intersect =
-        Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
-      in
-      if intersect then c := not !c;
-      j := !i;
-      i := Int.(!i + 1)
-    done;
-    !c)
+let fold_edges (type a) t ~(f : a -> Segment.t -> a) ~(init : a) : a =
+  let i = ref 0 in
+  let j = ref (Array.length t - 1) in
+  let acc = ref init in
+  while !i < Array.length t do
+    let s = Segment.create t.(!j) t.(!i) in
+    acc := f !acc s;
+    j := !i;
+    i := Int.(!i + 1)
+  done;
+  !acc
+;;
+
+let contains_excluding_perimeter (t : t) (pt : Point.t) =
+  let x = pt.x in
+  let y = pt.y in
+  let c = ref false in
+  let i = ref 0 in
+  let j = ref (Array.length t - 1) in
+  while !i < Array.length t do
+    let open Bignum in
+    let xi = t.(!i).x in
+    let yi = t.(!i).y in
+    let xj = t.(!j).x in
+    let yj = t.(!j).y in
+    let intersect =
+      Bool.( <> ) (yi > y) (yj > y) && x < ((xj - xi) * (y - yi) / (yj - yi)) + xi
+    in
+    if intersect then c := not !c;
+    j := !i;
+    i := Int.(!i + 1)
+  done;
+  !c
+;;
+
+let contains t pt =
+  let on_perimeter =
+    fold_edges t ~f:(fun acc segment -> acc || Segment.contains segment pt) ~init:false
+  in
+  on_perimeter || contains_excluding_perimeter t pt
 ;;
 
 let intersect_segment (t : t) s1 =
@@ -75,19 +90,6 @@ let intersect_segment (t : t) s1 =
     i := !i + 1
   done;
   !intersect
-;;
-
-let fold_edges t ~f ~init =
-  let i = ref 0 in
-  let j = ref (Array.length t - 1) in
-  let acc = ref init in
-  while !i < Array.length t do
-    let s = Segment.create t.(!j) t.(!i) in
-    acc := f !acc s;
-    j := !i;
-    i := Int.(!i + 1)
-  done;
-  !acc
 ;;
 
 let distance t point =
@@ -143,6 +145,17 @@ module Testing = struct
   let%test _ =
     let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
     contains polygon (point 0 4)
+  ;;
+
+  let%test _ =
+    let polygon = polygon [ 0, 0; 0, 4; 4, 4; 4, 0; 0, 0 ] in
+    contains polygon (point 0 2)
+  ;;
+
+  let%test _ =
+    let polygon = polygon [ 10, 0; 10, 10; 0, 10; 10, 0 ] in
+    let segment = Segment.create (point 10 0) (point 10 10) in
+    not (intersect_segment polygon segment)
   ;;
 
   let ( == ) a b = Float.(abs (a - b) <= 0.00001)

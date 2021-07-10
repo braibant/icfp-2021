@@ -7,3 +7,4 @@ type t =
 val create : Point.t -> Point.t -> t
 val intersect : t -> t -> bool
 val distance : t -> Point.t -> float
+val contains : t -> Point.t -> bool
