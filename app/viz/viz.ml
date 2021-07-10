@@ -71,6 +71,9 @@ module State = struct
       | None -> t
       | Some p -> { t with selected_vertex = None; pose = Pose.move t.pose idx ~to_:p })
   ;;
+
+  let reflect_vertical t = { t with pose = Pose.reflect_vertical t.pose }
+  let rotate t = { t with pose = Pose.reflect_vertical (Pose.transpose t.pose) }
 end
 
 open State
@@ -435,6 +438,8 @@ let draw_problem
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
   draw_bottom_text (sprintf !"Press z to undo");
   draw_bottom_text (sprintf !"Press v to snap to closest hole vertex");
+  draw_bottom_text (sprintf !"Press | to reflect vertically");
+  draw_bottom_text (sprintf !"Press > to rotate clockwise");
   state
 ;;
 
@@ -460,6 +465,8 @@ let rec interact
   let f_pressed = ref false in
   let z_pressed = ref false in
   let v_pressed = ref false in
+  let vbar_pressed = ref false in
+  let rotate_pressed = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -478,6 +485,8 @@ let rec interact
       | 'O' -> show_alternative_offsets := false
       | 'z' -> z_pressed := true
       | 'v' -> v_pressed := true
+      | '|' -> vbar_pressed := true
+      | '>' -> rotate_pressed := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
@@ -494,6 +503,8 @@ let rec interact
   let state = State.shift state !shift in
   let state = if !z_pressed then State.undo state else state in
   let state = if !v_pressed then State.snap_to_closest state else state in
+  let state = if !vbar_pressed then State.reflect_vertical state else state in
+  let state = if !rotate_pressed then State.rotate state else state in
   let state =
     draw_problem
       ~wall_x:10

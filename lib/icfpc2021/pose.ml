@@ -107,3 +107,15 @@ let edge_inside_hole t (a, b) =
   && Polygon.contains t.hole_polygon pb
   && not (Polygon.intersect_segment t.hole_polygon the_edge)
 ;;
+
+let reflect_vertical t =
+  let max_x, _max_y = Problem.max_xy t.problem in
+  { t with
+    vertices =
+      Map.map t.vertices ~f:(fun p -> Point.create ~x:Bignum.(max_x - p.x) ~y:p.y)
+  }
+;;
+
+let transpose t =
+  { t with vertices = Map.map t.vertices ~f:(fun p -> Point.create ~x:p.y ~y:p.x) }
+;;
