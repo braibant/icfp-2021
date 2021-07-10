@@ -422,13 +422,20 @@ let get_mouse_pos () =
   else Some (mouse_x, mouse_y)
 ;;
 
-let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_offsets =
+let rec interact
+    ~state
+    ~answer_filename
+    ~alternative_offsets
+    ~show_alternative_offsets
+    ~solver
+  =
   let shutting_down = ref false in
   let space_pressed = ref false in
   let s_pressed = ref false in
   let f_pressed = ref false in
-  let g_pressed = ref false in
   let z_pressed = ref false in
+  let start_solver = ref false in
+  let stop_solver = ref false in
   let shift = ref (0, 0) in
   let () =
     while G.key_pressed () do
@@ -443,8 +450,9 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
       | 'W' -> shift := 0, -1
       | 'o' -> show_alternative_offsets := true
       | 'O' -> show_alternative_offsets := false
-      | 'G' -> g_pressed := true
       | 'z' -> z_pressed := true
+      | 'g' -> start_solver := true
+      | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -472,9 +480,9 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
       ~show_alternative_offsets:!show_alternative_offsets
       ~state
   in
-  G.synchronize ();
-  let state =
-    if !g_pressed
+  let solver = if !stop_solver then None else solver in
+  let solver =
+    if !start_solver
     then (
       let solver =
         Solver.create
@@ -483,22 +491,36 @@ let rec interact ~state ~answer_filename ~alternative_offsets ~show_alternative_
           ~alternative_offsets
       in
       printf "Invoking solver...\n%!";
-      match Solver.run solver with
-      | `Failed ->
-        printf "ERROR: Solving failed\n%!";
-        state
+      Some (solver, Solver.create_initial_stack solver))
+    else solver
+  in
+  G.synchronize ();
+  let state, solver =
+    match solver with
+    | None -> state, solver
+    | Some (solver, stack) ->
+      (match Solver.incremental_run solver ~work_to_do:10 ~stack with
       | `Done solver ->
         printf "Solving done\n%!";
-        { state with
-          pose = Solver.pose solver
-        ; history = Move_points state.pose :: state.history
-        })
-    else state
+        { state with pose = Solver.pose solver }, None
+      | `Todo (solver, stack) ->
+        { state with pose = Solver.pose solver }, Some (solver, stack)
+      | `Failed _ ->
+        (match stack with
+        | [] | [ _ ] ->
+          printf "ERROR: Solving failed\n%!";
+          state, None
+        | _ :: rest_stack -> state, Some (solver, rest_stack)))
   in
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
-    interact ~state ~answer_filename ~alternative_offsets ~show_alternative_offsets)
+    interact
+      ~state
+      ~answer_filename
+      ~alternative_offsets
+      ~show_alternative_offsets
+      ~solver)
 ;;
 
 let display ~filename ~answer_filename ~no_alternative_offsets =
@@ -528,6 +550,7 @@ let display ~filename ~answer_filename ~no_alternative_offsets =
       ~answer_filename
       ~alternative_offsets
       ~show_alternative_offsets:(ref false)
+      ~solver:None
   in
   G.close_graph ()
 ;;

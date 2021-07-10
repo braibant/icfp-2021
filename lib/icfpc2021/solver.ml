@@ -10,6 +10,14 @@ type t =
   }
 [@@deriving fields]
 
+module Stack_frame = struct
+  type nonrec t =
+    { solver_t : t
+    ; next_vertex : int
+    ; alternative_positions : Point.t list
+    }
+end
+
 let create ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
   let vertices_left =
     Set.diff
@@ -55,10 +63,10 @@ let pick_next_vertex ~vertices_left ~vertex_edges ~frozen_vertices =
            Int.descending num_conns1 num_conns2)
     |> List.hd_exn
   in
-  printf
-    "Solver trying to fix vertex %d with %d frozen connections\n%!"
-    next_vertex
-    num_conns;
+  (* printf
+   *   "Solver trying to fix vertex %d with %d frozen connections\n%!"
+   *   next_vertex
+   *   num_conns; *)
   next_vertex, conns, num_conns
 ;;
 
@@ -88,20 +96,20 @@ let find_alternative_positions_for_vertex
   | aps :: apss -> List.fold_left apss ~init:aps ~f:(fun acc aps -> Set.inter acc aps)
 ;;
 
-let rec run t =
+let rec recursive_run t =
   if Set.is_empty t.vertices_left
   then `Done t
   else (
-    let next_vertex, conns, num_conns =
+    let next_vertex, conns, _num_conns =
       pick_next_vertex
         ~vertices_left:t.vertices_left
         ~vertex_edges:t.vertex_edges
         ~frozen_vertices:t.frozen_vertices
     in
-    printf
-      "Solver trying to fix vertex %d with %d frozen connections\n%!"
-      next_vertex
-      num_conns;
+    (* printf
+     *   "Solver trying to fix vertex %d with %d frozen connections\n%!"
+     *   next_vertex
+     *   num_conns; *)
     let alternative_positions =
       find_alternative_positions_for_vertex
         next_vertex
@@ -109,7 +117,7 @@ let rec run t =
         ~alternative_offsets:t.alternative_offsets
         ~pose:t.pose
     in
-    printf "Solver found %d alternative positions\n%!" (Set.length alternative_positions);
+    (* printf "Solver found %d alternative positions\n%!" (Set.length alternative_positions); *)
     let rec alternative_position_loop = function
       | [] -> `Failed
       | pos :: rest_aps ->
@@ -117,9 +125,121 @@ let rec run t =
         let frozen_vertices = Set.add t.frozen_vertices next_vertex in
         let vertices_left = Set.remove t.vertices_left next_vertex in
         let t = { t with pose; frozen_vertices; vertices_left } in
-        (match run t with
+        (match recursive_run t with
         | `Done t -> `Done t
         | `Failed -> alternative_position_loop rest_aps)
     in
     alternative_position_loop (Set.to_list alternative_positions))
+;;
+
+let create_deeper_stack_frame t =
+  let next_vertex, conns, _num_conns =
+    pick_next_vertex
+      ~vertices_left:t.vertices_left
+      ~vertex_edges:t.vertex_edges
+      ~frozen_vertices:t.frozen_vertices
+  in
+  (* printf
+   *   "Solver trying to fix vertex %d with %d frozen connections\n%!"
+   *   next_vertex
+   *   num_conns; *)
+  let alternative_positions =
+    find_alternative_positions_for_vertex
+      next_vertex
+      ~connections_to_frozen_vertices:conns
+      ~alternative_offsets:t.alternative_offsets
+      ~pose:t.pose
+    |> Set.to_list
+  in
+  (* printf "Solver found %d alternative positions\n%!" (List.length alternative_positions); *)
+  Stack_frame.{ solver_t = t; next_vertex; alternative_positions }
+;;
+
+let create_initial_stack t = [ create_deeper_stack_frame t ]
+
+let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
+  printf "\n\nSolver.incremental_run ~stack:%d\n%!" (List.length stack0);
+  let rec incremental_loop t ~work_to_do ~stack =
+    printf "incremental_loop ~stack:%d\n%!" (List.length stack);
+    if Set.is_empty t.vertices_left
+    then `Done t
+    else if work_to_do <= 0
+    then `Todo (t, stack)
+    else (
+      match (stack : Stack_frame.t list) with
+      | [] -> failwith "Solver.incremental_run: empty stack"
+      | { solver_t; next_vertex; alternative_positions } :: rest_stack ->
+        (* solver_t is always the same as t, at this point *)
+        (match
+           alternative_position_loop
+             solver_t
+             alternative_positions
+             ~work_to_do
+             ~next_vertex
+             ~stack_excluding_self:rest_stack
+         with
+        | `Done t -> `Done t
+        | `Todo (t, stack) -> `Todo (t, stack)
+        | `Failed work_to_do ->
+          printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack);
+          `Failed work_to_do))
+  and alternative_position_loop
+      (t : t)
+      ~work_to_do
+      ~next_vertex
+      ~stack_excluding_self
+      alternative_positions
+    =
+    let stack_depth = List.length stack_excluding_self + 1 in
+    printf "alternative_position_loop\n%!";
+    List.iteri
+      (List.rev stack_excluding_self)
+      ~f:(fun i Stack_frame.{ alternative_positions; _ } ->
+        printf
+          "  - stack depth %d: alternative_positions=%d\n%!"
+          (i + 1)
+          (List.length alternative_positions));
+    printf
+      "  - stack depth %d: alternative_positions=%d\n%!"
+      stack_depth
+      (List.length alternative_positions);
+    if work_to_do <= 0
+    then
+      `Todo
+        ( t
+        , Stack_frame.{ solver_t = t; next_vertex; alternative_positions }
+          :: stack_excluding_self )
+    else (
+      match alternative_positions with
+      | [] -> `Failed work_to_do
+      | pos :: rest_aps ->
+        let pose = Pose.move t.pose next_vertex ~to_:pos in
+        let frozen_vertices = Set.add t.frozen_vertices next_vertex in
+        let vertices_left = Set.remove t.vertices_left next_vertex in
+        let updated_t = { t with pose; frozen_vertices; vertices_left } in
+        let cur_frame =
+          (* CR scvalex: Should this solver_t be t or updated_t? *)
+          Stack_frame.{ solver_t = t; next_vertex; alternative_positions = rest_aps }
+        in
+        if Set.is_empty vertices_left
+        then `Done updated_t
+        else (
+          let updated_stack =
+            create_deeper_stack_frame updated_t :: cur_frame :: stack_excluding_self
+          in
+          match
+            incremental_loop updated_t ~work_to_do:(work_to_do - 1) ~stack:updated_stack
+          with
+          | `Done t -> `Done t
+          | `Todo (t, stack) -> `Todo (t, stack)
+          | `Failed work_to_do ->
+            printf "trying alternatives after failure\n%!";
+            alternative_position_loop
+              t
+              rest_aps
+              ~next_vertex
+              ~work_to_do
+              ~stack_excluding_self))
+  in
+  incremental_loop t0 ~work_to_do:work_to_do0 ~stack:stack0
 ;;
