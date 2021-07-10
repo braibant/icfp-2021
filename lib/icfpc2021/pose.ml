@@ -105,5 +105,5 @@ let edge_inside_hole t (a, b) =
   let the_edge = Segment.create pa pb in
   Polygon.contains polygon pa
   && Polygon.contains polygon pb
-  && Polygon.intersect_segment polygon the_edge
+  && not (Polygon.intersect_segment polygon the_edge)
 ;;
