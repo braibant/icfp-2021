@@ -92,3 +92,7 @@ let invalid_edges t =
       in
       Option.map (deformation_badness t edge new_length) ~f:(fun badness -> edge, badness))
 ;;
+
+let shift t (dx, dy) =
+  { t with vertices = Map.map t.vertices ~f:(fun p -> Point.shift p (dx, dy)) }
+;;

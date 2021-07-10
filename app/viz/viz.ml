@@ -23,6 +23,10 @@ module State = struct
   let create ~pose =
     { selected_vertex = None; pose; manually_frozen_vertices = Int.Set.empty }
   ;;
+
+  let shift t (dx, dy) =
+    if dx = 0 && dy = 0 then t else { t with pose = Pose.shift t.pose (dx, dy) }
+  ;;
 end
 
 open State
@@ -351,6 +355,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press SPACE to deselect vertex");
   draw_bottom_text (sprintf !"Press s to save");
   draw_bottom_text (sprintf !"Press f to freeze highlighted vertex");
+  draw_bottom_text (sprintf !"Press AWSD to shift");
   state
 ;;
 
@@ -368,6 +373,7 @@ let rec interact ~state ~answer_filename =
   let space_pressed = ref false in
   let s_pressed = ref false in
   let f_pressed = ref false in
+  let shift = ref (0, 0) in
   let () =
     while G.key_pressed () do
       match G.read_key () with
@@ -375,6 +381,10 @@ let rec interact ~state ~answer_filename =
       | ' ' -> space_pressed := true
       | 's' -> s_pressed := true
       | 'f' -> f_pressed := true
+      | 'A' -> shift := -1, 0
+      | 'S' -> shift := 0, 1
+      | 'D' -> shift := 1, 0
+      | 'W' -> shift := 0, -1
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -386,6 +396,7 @@ let rec interact ~state ~answer_filename =
     if List.length invalid_edges > 0
     then printf "WARNING: Invalid edges: %d\n%!" (List.length invalid_edges));
   draw_bg ();
+  let state = State.shift state !shift in
   let state =
     draw_problem
       ~wall_x:10
