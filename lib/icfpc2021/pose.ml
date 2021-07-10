@@ -96,3 +96,14 @@ let invalid_edges t =
 let shift t (dx, dy) =
   { t with vertices = Map.map t.vertices ~f:(fun p -> Point.shift p (dx, dy)) }
 ;;
+
+let edge_inside_hole t (a, b) =
+  let problem : Problem.t = t.problem in
+  let polygon = Polygon.of_vertices problem.hole in
+  let pa = Map.find_exn t.vertices a in
+  let pb = Map.find_exn t.vertices b in
+  let the_edge = Segment.create pa pb in
+  Polygon.contains polygon pa
+  && Polygon.contains polygon pb
+  && Polygon.intersect_segment polygon the_edge
+;;
