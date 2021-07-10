@@ -77,7 +77,7 @@ let deformation_badness t edge curr_length =
 let min_max_length_sq_for_edge t edge =
   let orig_length = Map.find_exn t.orig_lengths edge in
   let tolerance = Bignum.(t.problem.epsilon / million) in
-  Bignum.(orig_length - tolerance, orig_length + tolerance)
+  Bignum.(orig_length * (one - tolerance), orig_length * (one + tolerance))
 ;;
 
 let move t vertex ~to_:point =

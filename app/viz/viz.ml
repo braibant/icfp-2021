@@ -317,7 +317,6 @@ let draw_problem
     let open Bignum in
     len / scale |> Bignum.round |> Bignum.to_int_exn
   in
-  G.set_color G.yellow;
   let () =
     match state.selected_vertex with
     | Some selected_vertex ->
@@ -333,7 +332,9 @@ let draw_problem
           let point_x, point_y =
             figure_to_wall_space (Int.Map.find_exn (Pose.vertices state.pose) point_idx)
           in
+          G.set_color (G.rgb 150 150 0);
           G.draw_circle point_x point_y (length_sq_to_wall_space min_edge_sq);
+          G.set_color (G.rgb 255 255 0);
           G.draw_circle point_x point_y (length_sq_to_wall_space max_edge_sq))
     | None -> ()
   in
