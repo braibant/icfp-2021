@@ -10,10 +10,23 @@ let compute_offsets epsilon ~a ~b =
   let orig_len = Point.distance a b in
   let min_len = Bignum.(orig_len * (one - tolerance)) in
   let max_len = Bignum.(orig_len * (one + tolerance)) in
-  let int_len = Bignum.round max_len ~dir:`Up |> Bignum.to_int_exn in
+  let _int_len = Bignum.round max_len ~dir:`Up |> Bignum.to_int_exn in
   let origin = Point.create ~x:Bignum.zero ~y:Bignum.zero in
-  for x = 0 to int_len do
-    for y = 0 to int_len do
+  let max_x =
+    (* at most sqrt(max_len) *)
+    Float.(sqrt (Bignum.to_float max_len) |> round_up |> to_int)
+  in
+  for x = 0 to max_x do
+    let y_from_len len =
+      (*  y = sqrt (len - x^2) *)
+      let y2 = Bignum.(len - (of_int x * of_int x)) in
+      if Bignum.(y2 <= zero)
+      then 0
+      else Bignum.to_float y2 |> Float.sqrt |> Float.round_up |> Float.to_int
+    in
+    (* Smallest y should be the one that lets us reach min_len, largest y should 
+       be the one where we reach max_len *)
+    for y = y_from_len min_len to y_from_len max_len do
       let p = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y) in
       let dist = Point.distance origin p in
       if Bignum.( <= ) min_len dist && Bignum.( <= ) dist max_len
@@ -36,7 +49,8 @@ let%expect_test "offsets" =
         ~b:(Point.create ~x:ten ~y:ten))
   in
   printf !"%{sexp: (Bignum.t * Bignum.t) list}\n" offsets;
-  [%expect {|
+  [%expect
+    {|
     ((13 3) (-13 3) (13 -3) (-13 -3) (13 2) (-13 2) (13 -2) (-13 -2) (13 1)
      (-13 1) (13 -1) (-13 -1) (13 0) (-13 0) (13 0) (-13 0) (12 5) (-12 5)
      (12 -5) (-12 -5) (12 4) (-12 4) (12 -4) (-12 -4) (12 3) (-12 3) (12 -3)
