@@ -26,6 +26,8 @@ module State = struct
     ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
     ; history : Operation.t list
+    ; scale : Bignum.t
+    ; view_offset : int * int
     }
 
   let create ~pose =
@@ -33,11 +35,14 @@ module State = struct
     ; pose
     ; manually_frozen_vertices = Int.Set.empty
     ; history = []
+    ; scale = Bignum.one
+    ; view_offset = 0, 0
     }
   ;;
 
   let reset t =
-    { history =
+    { t with
+      history =
         Change_frozen t.manually_frozen_vertices :: Move_points t.pose :: t.history
     ; manually_frozen_vertices = Int.Set.empty
     ; selected_vertex = None
@@ -186,6 +191,11 @@ module State = struct
     ; history = Change_frozen t.manually_frozen_vertices :: t.history
     }
   ;;
+
+  let pan t (dx, dy) =
+    let x, y = t.view_offset in
+    { t with view_offset = x + dx, y + dy }
+  ;;
 end
 
 open State
@@ -329,7 +339,9 @@ let draw_problem
   let wall_x, wall_y, wall_height, wall_width =
     draw_wall ~wall_x ~wall_y ~wall_height ~wall_width
   in
-  let scale = compute_scale ~prob ~wall_width ~wall_height in
+  let wall_x = wall_x + fst state.view_offset in
+  let wall_y = wall_y + snd state.view_offset in
+  let scale = Bignum.( * ) state.scale (compute_scale ~prob ~wall_width ~wall_height) in
   let figure_to_wall_space Point.{ x; y } =
     let x = wall_x + (Bignum.(x / scale) |> Bignum.round |> Bignum.to_int_exn) in
     let y =
@@ -535,6 +547,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press = to print edge that matches hole edge");
   draw_bottom_text (sprintf !"Press R to reset the problem");
   draw_bottom_text (sprintf !"Press * to randomize unfrozen vertices");
+  draw_bottom_text (sprintf !"Press +-0,JKLI to zoom/pan");
   state
 ;;
 
@@ -568,6 +581,13 @@ let rec interact
   let reset_pressed = ref false in
   let random_pressed = ref false in
   let freeze_all_pressed = ref false in
+  let scale_up_pressed = ref false in
+  let scale_down_pressed = ref false in
+  let normal_scale_pressed = ref false in
+  let pan_left = ref false in
+  let pan_right = ref false in
+  let pan_down = ref false in
+  let pan_up = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
   let shift = ref (0, 0) in
@@ -592,6 +612,13 @@ let rec interact
       | '=' -> fit_pressed := true
       | 'R' -> reset_pressed := true
       | '*' -> random_pressed := true
+      | '+' -> scale_up_pressed := true
+      | '-' -> scale_down_pressed := true
+      | '0' -> normal_scale_pressed := true
+      | 'J' -> pan_left := true
+      | 'L' -> pan_right := true
+      | 'K' -> pan_down := true
+      | 'I' -> pan_up := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
@@ -614,6 +641,25 @@ let rec interact
   let state = if !fit_pressed then State.fit_unique_edge state else state in
   let state = if !random_pressed then State.randomize state else state in
   let state = if !freeze_all_pressed then State.freeze_all state else state in
+  let state =
+    if !scale_up_pressed
+    then { state with scale = Bignum.(state.scale - tenth) }
+    else state
+  in
+  let state =
+    if !scale_down_pressed
+    then { state with scale = Bignum.(state.scale + tenth) }
+    else state
+  in
+  let state =
+    if !normal_scale_pressed
+    then { state with scale = Bignum.one; view_offset = 0, 0 }
+    else state
+  in
+  let state = if !pan_left then State.pan state (-10, 0) else state in
+  let state = if !pan_right then State.pan state (10, 0) else state in
+  let state = if !pan_down then State.pan state (0, -10) else state in
+  let state = if !pan_up then State.pan state (0, 10) else state in
   let state =
     draw_problem
       ~wall_x:10
