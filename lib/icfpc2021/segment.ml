@@ -50,6 +50,7 @@ let distance =
 ;;
 
 let contains segment point = Float.(abs (distance segment point) <= 0.00001)
+let contains_segment segment ~other = contains segment other.a && contains segment other.b
 
 module Testing = struct
   let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
@@ -81,6 +82,23 @@ module Testing = struct
     let s = segment (point 0 0) (point 0 2) in
     distance s (point 1 1) == 1.0
   ;;
+
+  let%test _ =
+    let s = segment (point 0 10) (point 10 10) in
+    distance s (point 0 10) == 0.0
+  ;;
+
+  (* let%test _ =
+   *   let s = segment (point 0 10) (point 10 10) in
+   *   printf !"Edge distance: %.2f\n%!" (distance s (point 0 10));
+   *   contains_segment s ~other:s
+   * ;;
+   *
+   * let%test _ =
+   *   let s = segment (point 0 10) (point 10 10) in
+   *   let h = segment (point 5 10) (point 10 10) in
+   *   contains_segment s ~other:h
+   * ;; *)
 
   let%test _ =
     let s = segment (point 0 0) (point 0 2) in
