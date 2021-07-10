@@ -9,3 +9,4 @@ val intersect : t -> t -> bool
 val distance : t -> Point.t -> float
 val contains : t -> Point.t -> bool
 val contains_segment : t -> other:t -> bool
+val middle : t -> Point.t
