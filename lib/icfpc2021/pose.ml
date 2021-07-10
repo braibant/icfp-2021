@@ -134,3 +134,33 @@ let dislikes t =
             let dist = Point.distance hole_p p |> Bignum.to_int_exn in
             Int.min dist closest_dist)))
 ;;
+
+let find_pose_edge_that_matches_hole_edge t =
+  (* go over all hole edges, looking for pose edges that will fit there. 
+     If only one such fit found, return it *)
+  for i = 0 to Array.length t.hole_polygon - 1 do
+    let prev = if i = 0 then Array.length t.hole_polygon - 1 else i - 1 in
+    let hole_from_p = t.hole_polygon.(prev) in
+    let hole_to_p = t.hole_polygon.(i) in
+    let hole_edge_length = Point.distance hole_from_p hole_to_p in
+    let matching_edges =
+      List.filter_map t.problem.figure_edges ~f:(fun edge ->
+          match deformation_badness t edge hole_edge_length with
+          | None -> Some edge
+          | Some _ -> None)
+    in
+    match matching_edges with
+    | [ (from_, to_) ] ->
+      let from_p = Map.find_exn t.vertices from_ in
+      let to_p = Map.find_exn t.vertices to_ in
+      printf
+        !"HOLE EDGE %{sexp:Point.t} to %{sexp:Point.t} MATCHES %{sexp:Point.t} \
+          %{sexp:Point.t}\n\
+          %!"
+        hole_from_p
+        hole_to_p
+        from_p
+        to_p
+    | _ -> ()
+  done
+;;
