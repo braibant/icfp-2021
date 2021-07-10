@@ -22,3 +22,11 @@ val incremental_run
   -> [ `Done of t | `Todo of t * Stack_frame.t list | `Failed of int ]
 
 val create_initial_stack : t -> Stack_frame.t list
+
+val incremental_bfs_run
+  :  t
+  -> work_to_do:int
+  -> stack:Stack_frame.t list
+  -> [ `Done of t | `Todo of t * Stack_frame.t list | `Failed of int ]
+
+val create_initial_bfs_stack : t -> Stack_frame.t list

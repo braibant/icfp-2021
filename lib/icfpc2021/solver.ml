@@ -15,6 +15,8 @@ module Stack_frame = struct
     { solver_t : t
     ; next_vertex : int
     ; alternative_positions : Point.t list
+    ; queue : int Fqueue.t
+    ; in_queue : Int.Set.t
     }
 end
 
@@ -176,7 +178,13 @@ let create_deeper_stack_frame t =
       ~pose:t.pose
   in
   (* printf "Solver found %d alternative positions\n%!" (List.length alternative_positions); *)
-  Stack_frame.{ solver_t = t; next_vertex; alternative_positions }
+  Stack_frame.
+    { solver_t = t
+    ; next_vertex
+    ; alternative_positions
+    ; queue = Fqueue.empty
+    ; in_queue = Int.Set.empty
+    }
 ;;
 
 let create_initial_stack t = [ create_deeper_stack_frame t ]
@@ -200,7 +208,8 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
     else (
       match (stack : Stack_frame.t list) with
       | [] -> failwith "Solver.incremental_run: empty stack"
-      | { solver_t; next_vertex; alternative_positions } :: rest_stack ->
+      | { solver_t; next_vertex; alternative_positions; queue = _; in_queue = _ }
+        :: rest_stack ->
         (* solver_t is always the same as t, at this point *)
         (match
            alternative_position_loop
@@ -239,7 +248,13 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
     then
       `Todo
         ( t
-        , Stack_frame.{ solver_t = t; next_vertex; alternative_positions }
+        , Stack_frame.
+            { solver_t = t
+            ; next_vertex
+            ; alternative_positions
+            ; queue = Fqueue.empty
+            ; in_queue = Int.Set.empty
+            }
           :: stack_excluding_self )
     else (
       match alternative_positions with
@@ -257,7 +272,13 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
           let updated_t = { t with pose; frozen_vertices; vertices_left } in
           let cur_frame =
             (* CR scvalex: Should this solver_t be t or updated_t? *)
-            Stack_frame.{ solver_t = t; next_vertex; alternative_positions = rest_aps }
+            Stack_frame.
+              { solver_t = t
+              ; next_vertex
+              ; alternative_positions = rest_aps
+              ; queue = Fqueue.empty
+              ; in_queue = Int.Set.empty
+              }
           in
           if Set.is_empty vertices_left
           then `Done updated_t
@@ -289,4 +310,189 @@ let incremental_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
             ~stack_excluding_self)
   in
   incremental_loop t0 ~work_to_do:work_to_do0 ~stack:stack0
+;;
+
+let create_bfs_stack_frame t vertex ~queue ~in_queue =
+  let connections_to_frozen_vertices, other_conns =
+    let edges = Map.find t.vertex_edges vertex |> Option.value ~default:[] in
+    let connected_vertices = List.map edges ~f:snd in
+    List.partition_tf connected_vertices ~f:(Set.mem t.frozen_vertices)
+  in
+  let alternative_positions =
+    find_alternative_positions_for_vertex
+      vertex
+      ~connections_to_frozen_vertices
+      ~alternative_offsets:t.alternative_offsets
+      ~pose:t.pose
+  in
+  let queue, in_queue =
+    List.fold_left
+      other_conns
+      ~init:(queue, in_queue)
+      ~f:(fun (queue, in_queue) other_vertex ->
+        if Set.mem in_queue other_vertex || Set.mem t.frozen_vertices other_vertex
+        then queue, in_queue
+        else Fqueue.enqueue queue other_vertex, Int.Set.add in_queue other_vertex)
+  in
+  Stack_frame.
+    { solver_t = t; next_vertex = vertex; alternative_positions; queue; in_queue }
+;;
+
+let create_initial_bfs_stack t =
+  let vertices_adjacent_to_manually_frozen =
+    Map.keys (Pose.vertices t.pose)
+    |> List.filter ~f:(fun vertex ->
+           (not (Set.mem t.manually_frozen_vertices vertex))
+           && List.exists
+                (Map.find_exn t.vertex_edges vertex)
+                ~f:(fun (_, other_vertex) ->
+                  Set.mem t.manually_frozen_vertices other_vertex))
+  in
+  let queue =
+    List.fold_left
+      vertices_adjacent_to_manually_frozen
+      ~init:Fqueue.empty
+      ~f:(fun queue vertex -> Fqueue.enqueue queue vertex)
+  in
+  let in_queue =
+    List.fold_left
+      vertices_adjacent_to_manually_frozen
+      ~init:Int.Set.empty
+      ~f:(fun in_queue vertex -> Set.add in_queue vertex)
+  in
+  let first_vertex, queue = Option.value_exn (Fqueue.dequeue queue) in
+  let in_queue = Set.remove in_queue first_vertex in
+  [ create_bfs_stack_frame t first_vertex ~queue ~in_queue ]
+;;
+
+let incremental_bfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
+  (* printf "\n\nSolver.incremental_bfs_run ~stack:%d\n%!" (List.length stack0); *)
+  let rec incremental_loop t ~work_to_do ~stack =
+    (* printf "incremental_loop ~stack:%d\n%!" (List.length stack); *)
+    if Set.is_empty t.vertices_left
+    then `Done t
+    else if work_to_do <= 0
+    then `Todo (t, stack)
+    else (
+      match (stack : Stack_frame.t list) with
+      | [] -> failwith "Solver.incremental_run: empty stack"
+      | { solver_t; next_vertex; alternative_positions; queue; in_queue } :: rest_stack ->
+        (* solver_t is always the same as t, at this point *)
+        (match
+           alternative_position_loop
+             solver_t
+             alternative_positions
+             ~work_to_do
+             ~next_vertex
+             ~stack_excluding_self:rest_stack
+             ~queue
+             ~in_queue
+         with
+        | `Done t -> `Done t
+        | `Todo (t, stack) -> `Todo (t, stack)
+        | `Failed work_to_do ->
+          (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
+          `Failed work_to_do))
+  and alternative_position_loop
+      (t : t)
+      alternative_positions
+      ~work_to_do
+      ~next_vertex
+      ~stack_excluding_self
+      ~queue
+      ~in_queue
+    =
+    (* let stack_depth = List.length stack_excluding_self + 1 in
+     * printf "alternative_position_loop\n%!";
+     * List.iteri
+     *   (List.rev stack_excluding_self)
+     *   ~f:(fun i Stack_frame.{ alternative_positions; queue; _ } ->
+     *     printf
+     *       "  - stack depth %d: alternative_positions=%d; queue=%d\n%!"
+     *       (i + 1)
+     *       (List.length alternative_positions)
+     *       (Fqueue.length queue));
+     * printf
+     *   "  - stack depth %d: alternative_positions=%d; queue=%d\n%!"
+     *   stack_depth
+     *   (List.length alternative_positions)
+     *   (Fqueue.length queue); *)
+    if work_to_do <= 0
+    then
+      `Todo
+        ( t
+        , Stack_frame.
+            { solver_t = t; next_vertex; alternative_positions; queue; in_queue }
+          :: stack_excluding_self )
+    else (
+      match alternative_positions with
+      | [] -> `Failed work_to_do
+      | pos :: rest_aps ->
+        let pose = Pose.move t.pose next_vertex ~to_:pos in
+        if all_edges_to_frozen_inside_hole
+             next_vertex
+             ~pose
+             ~frozen_vertices:t.frozen_vertices
+             ~vertex_edges:t.vertex_edges
+        then (
+          let frozen_vertices = Set.add t.frozen_vertices next_vertex in
+          let vertices_left = Set.remove t.vertices_left next_vertex in
+          let updated_t = { t with pose; frozen_vertices; vertices_left } in
+          let cur_frame =
+            (* CR scvalex: Should this solver_t be t or updated_t? *)
+            Stack_frame.
+              { solver_t = t
+              ; next_vertex
+              ; alternative_positions = rest_aps
+              ; queue
+              ; in_queue
+              }
+          in
+          if Set.is_empty vertices_left
+          then `Done updated_t
+          else (
+            match Fqueue.dequeue queue with
+            | None -> failwith "Still had vertices to place but work queue was empty"
+            | Some (queued_vertex, updated_queue) ->
+              let updated_in_queue = Set.remove in_queue queued_vertex in
+              let updated_stack =
+                create_bfs_stack_frame
+                  updated_t
+                  queued_vertex
+                  ~queue:updated_queue
+                  ~in_queue:updated_in_queue
+                :: cur_frame :: stack_excluding_self
+              in
+              (match
+                 incremental_loop
+                   updated_t
+                   ~work_to_do:(work_to_do - 1)
+                   ~stack:updated_stack
+               with
+              | `Done t -> `Done t
+              | `Todo (t, stack) -> `Todo (t, stack)
+              | `Failed work_to_do ->
+                (* printf "trying alternatives after failure\n%!"; *)
+                alternative_position_loop
+                  t
+                  rest_aps
+                  ~next_vertex
+                  ~work_to_do
+                  ~stack_excluding_self
+                  ~queue
+                  ~in_queue)))
+        else
+          (* The new vertex has edges that go outside the hole, so try
+             the next alternative position.. *)
+          (* printf "trying alternatives edge overlap\n%!"; *)
+          alternative_position_loop
+            t
+            rest_aps
+            ~next_vertex
+            ~work_to_do
+            ~stack_excluding_self
+            ~queue
+            ~in_queue)
+  in
+  incremental_loop t0 ~stack:stack0 ~work_to_do:work_to_do0
 ;;
