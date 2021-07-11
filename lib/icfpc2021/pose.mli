@@ -27,6 +27,9 @@ val edge_inside_hole : t -> Edge.t -> bool
 val segment_inside_hole : t -> Segment.t -> bool
 val dislikes : t -> int
 
+(* Precomputed  *)
+val neighbours : t -> int list Int.Map.t
+
 val find_pose_edge_that_matches_hole_edge
   :  t
   -> frozen:Int.Set.t
