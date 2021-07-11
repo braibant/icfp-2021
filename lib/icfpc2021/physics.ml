@@ -74,6 +74,41 @@ let edges t ~frozen : Forces.t =
       force_neighbours t vertex neighbours)
 ;;
 
+(* Compute the set of neighbours up to distance [d] *)
+let relatives t ~vertex ~distance =
+  assert (0 <= distance);
+  let neighbours = Pose.neighbours t in
+  let v = Array.create ~len:(distance + 1) Int.Set.empty in
+  let acc = ref (Int.Set.singleton vertex) in
+  for i = 0 to distance do
+    v.(i) <- !acc;
+    let next =
+      Set.fold !acc ~init:Int.Set.empty ~f:(fun acc n ->
+          Int.Set.union (Int.Set.of_list (Map.find_exn neighbours n)) acc)
+    in
+    acc := next
+  done;
+  v
+;;
+
+let drag t ~frozen ~vertex ~distance : Forces.t =
+  let relatives = relatives t ~vertex ~distance in
+  let forces = ref (edges t ~frozen) in
+  let visited = ref Int.Set.empty in
+  let scale = ref 1.0 in
+  for i = 1 to distance do
+    let s = relatives.(i) in
+    let s = Int.Set.diff s !visited in
+    Set.iter s ~f:(fun v ->
+        match Map.find !forces v with
+        | None -> ()
+        | Some f -> forces := Map.set !forces ~key:v ~data:(Vec.scale f !scale));
+    visited := Set.union !visited s;
+    scale := 0.8 *. !scale
+  done;
+  !forces
+;;
+
 (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
      but doing this naively means that the figure could get clumped in a corner.
      Maybe, what we want to do is pick the closest hole vertex that we have not
