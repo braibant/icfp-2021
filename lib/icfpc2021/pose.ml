@@ -284,6 +284,17 @@ module Springs = struct
     else Vec.zero, 0.0
   ;;
 
+  let pose_vertex_to_hole_vertex_model (pv : Point.t) (hv : Point.t) (dislikes : Float.t)
+      : Vec.t
+    =
+    if Point.(pv = hv)
+    then Vec.zero
+    else (
+      let p = Point.(hv - pv) |> vec_of_point |> Vec.unit_length in
+      let d = Point.sq_distance hv pv |> Bignum.to_float in
+      Vec.scale p Float.(d / dislikes))
+  ;;
+
   (* Compute the force exerced on vertex [a] by [b]. If the length of the edge
      is lower than our lower bound, [a] is "pushed away by b". If the length of
      the edge is longer than our upper bound, [a] is "attracted" toward other
@@ -304,19 +315,37 @@ module Springs = struct
         Vec.(acc + f))
   ;;
 
+  let uncovered_hole_vertices (t : t) : Point.t list =
+    let hole = t.problem.hole |> Point.Set.of_list in
+    let vertices = Map.data t.vertices |> Point.Set.of_list in
+    Point.Set.diff hole vertices |> Point.Set.to_list
+  ;;
+
+  let force_to_nearest_hole_vertex pt uhvs dislikes =
+    List.map uhvs ~f:(fun uhv -> Point.sq_distance pt uhv |> Bignum.to_float, uhv)
+    |> List.min_elt ~compare:(fun a b -> Float.compare (fst a) (fst b))
+    |> Option.value_map ~default:Vec.zero ~f:(fun (_, uhv) ->
+           pose_vertex_to_hole_vertex_model pt uhv dislikes)
+  ;;
+
+  let edges t ~frozen : Forces.t =
+    let vertices = Map.filter_keys t.vertices ~f:(fun a -> not (Int.Set.mem frozen a)) in
+    let neighbours = Problem.neighbours t.problem in
+    Map.mapi vertices ~f:(fun ~key:vertex ~data:_ ->
+        let neighbours = Map.find_exn neighbours vertex in
+        force_neighbours t vertex neighbours)
+  ;;
+
   (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
      but doing this naively means that the figure could get clumped in a corner.
      Maybe, what we want to do is pick the closest hole vertex that we have not
      yet picked, and see if this improves things a bit. *)
-  let forces t ~frozen : Vec.t Int.Map.t =
-    let neighbours = Problem.neighbours t.problem in
-    Map.filter_mapi neighbours ~f:(fun ~key:a ~data:neighbours ->
-        if Int.Set.mem frozen a then None else Some (force_neighbours t a neighbours))
-  ;;
-
-  let energy (forces : Vec.t Int.Map.t) =
-    Map.fold forces ~init:Float.zero ~f:(fun ~key:_ ~data acc ->
-        Float.(acc + Vec.sq_length data))
+  let holes t ~frozen : Forces.t =
+    let vertices = Map.filter_keys t.vertices ~f:(fun a -> not (Int.Set.mem frozen a)) in
+    let uncovered_hole_vertices = uncovered_hole_vertices t in
+    let dislikes = dislikes t |> Float.of_int in
+    Map.mapi vertices ~f:(fun ~key:_vertex ~data:pt ->
+        force_to_nearest_hole_vertex pt uncovered_hole_vertices dislikes)
   ;;
 
   exception Found of int
@@ -339,9 +368,8 @@ module Springs = struct
     | Found k -> Some k
   ;;
 
-  let relax_one t ~frozen =
-    let forces = forces t ~frozen in
-    let energy = energy forces in
+  let relax_one t forces =
+    let energy = Forces.energy forces in
     match pick_one forces energy with
     | None ->
       (* The system is at rest *)
@@ -351,8 +379,7 @@ module Springs = struct
       (* Printf.eprintf "Moving %i (energy %.2f)\n%!" vertex (Bignum.to_float energy); *)
       let dir = Map.find_exn forces v |> point_of_vec |> Point.normalize_dir in
       let v' = Point.(dir + vertex t v) in
-      let vertices = Int.Map.set t.vertices ~key:v ~data:v' in
-      vertices
+      Int.Map.set t.vertices ~key:v ~data:v'
   ;;
 
   module Testing = struct
@@ -395,15 +422,14 @@ module Springs = struct
       let%test _ = force_one pose 0 ~neighbour:1 == Vec.zero
 
       let%test _ =
-        List.equal
-          (fun (k1, d1) (k2, d2) -> k1 = k2 && d1 == d2)
-          (forces pose ~frozen:Int.Set.empty |> Int.Map.to_alist)
-          [ 0, Vec.zero; 1, Vec.zero; 2, Vec.zero; 3, Vec.zero ]
+        let forces = edges pose ~frozen:Int.Set.empty |> Int.Map.to_alist in
+        List.is_empty forces
       ;;
 
       let%test _ =
-        let forces = forces ~frozen:Int.Set.empty pose in
-        Float.(energy forces = zero)
+        let forces = edges ~frozen:Int.Set.empty pose in
+        let energy = Forces.energy forces in
+        Float.(energy = zero)
       ;;
     end
   end

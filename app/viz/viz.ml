@@ -260,7 +260,8 @@ module State = struct
   ;;
 
   let spring_physics t =
-    let vertices = Pose.Springs.relax_one t.pose ~frozen:t.manually_frozen_vertices in
+    let forces = Pose.Springs.edges t.pose ~frozen:t.manually_frozen_vertices in
+    let vertices = Pose.Springs.relax_one t.pose forces in
     { t with
       pose = Pose.set_vertices' t.pose vertices
     ; history = Move_points t.pose :: t.history

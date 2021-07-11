@@ -42,5 +42,7 @@ val reflect_vertical : t -> t
 val transpose : t -> t
 
 module Springs : sig
-  val relax_one : t -> frozen:Int.Set.t -> Point.t Int.Map.t
+  val edges : t -> frozen:Int.Set.t -> Forces.t
+  val holes : t -> frozen:Int.Set.t -> Forces.t
+  val relax_one : t -> Forces.t -> Point.t Int.Map.t
 end
