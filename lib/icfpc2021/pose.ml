@@ -7,6 +7,7 @@ type t =
   ; orig_lengths : Bignum.t Int_int.Map.t
   ; hole_polygon : Polygon.t
   ; bonuses : Pose_bonus.t list
+  ; neighbours : int list Int.Map.t
   }
 [@@deriving fields]
 
@@ -39,6 +40,7 @@ let create problem =
       |> Int_int.Map.of_alist_exn
   ; hole_polygon = Polygon.of_vertices problem.hole
   ; bonuses = []
+  ; neighbours = Problem.neighbours problem
   }
 ;;
 
@@ -330,9 +332,8 @@ module Springs = struct
 
   let edges t ~frozen : Forces.t =
     let vertices = Map.filter_keys t.vertices ~f:(fun a -> not (Int.Set.mem frozen a)) in
-    let neighbours = Problem.neighbours t.problem in
     Map.mapi vertices ~f:(fun ~key:vertex ~data:_ ->
-        let neighbours = Map.find_exn neighbours vertex in
+        let neighbours = Map.find_exn t.neighbours vertex in
         force_neighbours t vertex neighbours)
   ;;
 

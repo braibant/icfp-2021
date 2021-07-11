@@ -468,6 +468,12 @@ let draw_problem
   in
   draw_right_text
     (sprintf !"Selected vrtx: %d" (Option.value state.selected_vertex ~default:~-1));
+  (* Show the number of neighbours for a given vertex *)
+  draw_right_text
+    (sprintf
+       !"Neighbours: %d"
+       (Option.value_map state.selected_vertex ~default:~-1 ~f:(fun x ->
+            Map.find_exn (Pose.neighbours state.pose) x |> List.length)));
   draw_right_text (sprintf !"Dislikes: %d" (Pose.dislikes state.pose));
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
