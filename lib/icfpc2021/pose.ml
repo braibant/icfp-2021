@@ -263,15 +263,36 @@ let sort_by_min_distance_to_hole_vertices t pts =
 ;;
 
 module Springs = struct
-  let edge_model pa pb lower_bound upper_bound : Point.t * Bignum.t =
-    let sq_distance = Point.sq_distance pa pb in
-    if Point.(pa = pb)
-    then Point.zero, Bignum.zero
-    else if Bignum.(sq_distance < lower_bound)
-    then Point.(unit_length (pa - pb)), Bignum.(abs (sq_distance - lower_bound))
-    else if Bignum.(upper_bound < sq_distance)
-    then Point.(unit_length (pb - pa)), Bignum.(abs (sq_distance - upper_bound))
-    else Point.zero, Bignum.zero
+  let vec_of_point (p : Point.t) =
+    Vec.create ~x:(Bignum.to_float p.x) ~y:(Bignum.to_float p.y)
+  ;;
+
+  let point_of_vec (p : Vec.t) =
+    Point.create ~x:(Bignum.of_float_decimal p.x) ~y:(Bignum.of_float_decimal p.y)
+  ;;
+
+  let vec t a = vertex t a |> vec_of_point
+
+  let edge_model pa pb lower_bound upper_bound : Vec.t * float =
+    let sq_distance = Vec.sq_distance pa pb in
+    if Vec.(pa = pb)
+    then Vec.zero, 0.0
+    else if Float.(sq_distance < lower_bound)
+    then Vec.(unit_length (pa - pb)), Float.(abs (sq_distance - lower_bound))
+    else if Float.(upper_bound < sq_distance)
+    then Vec.(unit_length (pb - pa)), Float.(abs (sq_distance - upper_bound))
+    else Vec.zero, 0.0
+  ;;
+
+  let pose_vertex_to_hole_vertex_model (pv : Point.t) (hv : Point.t) (dislikes : Float.t)
+      : Vec.t
+    =
+    if Point.(pv = hv)
+    then Vec.zero
+    else (
+      let p = Point.(hv - pv) |> vec_of_point |> Vec.unit_length in
+      let d = Point.sq_distance hv pv |> Bignum.to_float in
+      Vec.scale p Float.(d / dislikes))
   ;;
 
   (* Compute the force exerced on vertex [a] by [b]. If the length of the edge
@@ -279,45 +300,64 @@ module Springs = struct
      the edge is longer than our upper bound, [a] is "attracted" toward other
      vertex. *)
   let force_one t a ~neighbour:b =
-    let pa = vertex t a in
-    let pb = vertex t b in
+    let pa = vec t a in
+    let pb = vec t b in
     let lower_bound, upper_bound = min_max_length_sq_for_edge t (a, b) in
+    let lower_bound = Bignum.to_float lower_bound in
+    let upper_bound = Bignum.to_float upper_bound in
     let v, k = edge_model pa pb lower_bound upper_bound in
-    Point.scale v k
+    Vec.scale v k
   ;;
 
   let force_neighbours (t : t) a neighbours =
-    List.fold neighbours ~init:Point.zero ~f:(fun acc neighbour ->
+    List.fold neighbours ~init:Vec.zero ~f:(fun acc neighbour ->
         let f = force_one t a ~neighbour in
-        Point.(acc + f))
+        Vec.(acc + f))
+  ;;
+
+  let uncovered_hole_vertices (t : t) : Point.t list =
+    let hole = t.problem.hole |> Point.Set.of_list in
+    let vertices = Map.data t.vertices |> Point.Set.of_list in
+    Point.Set.diff hole vertices |> Point.Set.to_list
+  ;;
+
+  let force_to_nearest_hole_vertex pt uhvs dislikes =
+    List.map uhvs ~f:(fun uhv -> Point.sq_distance pt uhv |> Bignum.to_float, uhv)
+    |> List.min_elt ~compare:(fun a b -> Float.compare (fst a) (fst b))
+    |> Option.value_map ~default:Vec.zero ~f:(fun (_, uhv) ->
+           pose_vertex_to_hole_vertex_model pt uhv dislikes)
+  ;;
+
+  let edges t ~frozen : Forces.t =
+    let vertices = Map.filter_keys t.vertices ~f:(fun a -> not (Int.Set.mem frozen a)) in
+    let neighbours = Problem.neighbours t.problem in
+    Map.mapi vertices ~f:(fun ~key:vertex ~data:_ ->
+        let neighbours = Map.find_exn neighbours vertex in
+        force_neighbours t vertex neighbours)
   ;;
 
   (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
      but doing this naively means that the figure could get clumped in a corner.
      Maybe, what we want to do is pick the closest hole vertex that we have not
      yet picked, and see if this improves things a bit. *)
-
-  let forces t ~frozen : Point.t Int.Map.t =
-    let neighbours = Problem.neighbours t.problem in
-    Map.filter_mapi neighbours ~f:(fun ~key:a ~data:neighbours ->
-        if Int.Set.mem frozen a then None else Some (force_neighbours t a neighbours))
-  ;;
-
-  let energy (forces : Point.t Int.Map.t) =
-    Map.fold forces ~init:Bignum.zero ~f:(fun ~key:_ ~data acc ->
-        Bignum.(acc + Point.sq_length data))
+  let holes t ~frozen : Forces.t =
+    let vertices = Map.filter_keys t.vertices ~f:(fun a -> not (Int.Set.mem frozen a)) in
+    let uncovered_hole_vertices = uncovered_hole_vertices t in
+    let dislikes = dislikes t |> Float.of_int in
+    Map.mapi vertices ~f:(fun ~key:_vertex ~data:pt ->
+        force_to_nearest_hole_vertex pt uncovered_hole_vertices dislikes)
   ;;
 
   exception Found of int
 
-  let pick_one (forces : Point.t Int.Map.t) energy : int option =
-    let k = Bignum.(of_float_decimal (Random.float 1.0) * energy) in
+  let pick_one (forces : Vec.t Int.Map.t) energy : int option =
+    let k = Random.float 1.0 *. energy in
     try
-      let (_ : Bignum.t) =
-        Int.Map.fold forces ~init:Bignum.zero ~f:(fun ~key ~data acc ->
-            let l = Point.sq_length data in
-            let acc = Bignum.(acc + l) in
-            if Bignum.(k < acc)
+      let (_ : Float.t) =
+        Int.Map.fold forces ~init:Float.zero ~f:(fun ~key ~data acc ->
+            let l = Vec.sq_length data in
+            let acc = Float.(acc + l) in
+            if Float.(k < acc)
             then
               (* Printf.eprintf "Vertex %i, force %f\n%!" key (Bignum.to_float l); *)
               raise (Found key)
@@ -328,56 +368,43 @@ module Springs = struct
     | Found k -> Some k
   ;;
 
-  (* Normalize the given vector to one of U, L, D, R. We could be more precise here, and consider 8 neighbours. *)
-  let normalize_dir (t : Point.t) : Point.t =
-    let open Bignum in
-    if t.y >= abs t.x (* U *)
-    then { x = zero; y = one }
-    else if t.y <= zero - abs t.x (* D *)
-    then { x = zero; y = zero - one }
-    else if zero <= t.x
-    then { x = one; y = zero }
-    else { x = zero - one; y = zero }
-  ;;
-
-  let relax_one t ~frozen =
-    let forces = forces t ~frozen in
-    let energy = energy forces in
+  let relax_one t forces =
+    let energy = Forces.energy forces in
     match pick_one forces energy with
     | None ->
       (* The system is at rest *)
       (* Printf.eprintf "System at rest (energy %.2f)\n%!" (Bignum.to_float energy); *)
       t.vertices
-    | Some vertex ->
+    | Some v ->
       (* Printf.eprintf "Moving %i (energy %.2f)\n%!" vertex (Bignum.to_float energy); *)
-      let dir = Map.find_exn forces vertex |> normalize_dir in
-      let point = Point.(dir + Int.Map.find_exn t.vertices vertex) in
-      let vertices = Int.Map.set t.vertices ~key:vertex ~data:point in
-      vertices
+      let dir = Map.find_exn forces v |> point_of_vec |> Point.normalize_dir in
+      let v' = Point.(dir + vertex t v) in
+      Int.Map.set t.vertices ~key:v ~data:v'
   ;;
 
   module Testing = struct
+    let vec x y = Vec.create ~x:(Float.of_int x) ~y:(Float.of_int y)
     let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
-    let ( == ) a b = Bignum.(Point.sq_distance a b = zero)
+    let ( == ) a b = Float.(Vec.sq_distance a b = zero)
 
     let%test _ =
-      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 1) (Bignum.of_int 4) in
+      let p, _ = edge_model (vec 0 0) (vec 0 2) (Float.of_int 1) (Float.of_int 4) in
       (* Printf.printf !"%{sexp: Point.t}" p; *)
-      p == Point.zero
+      p == Vec.zero
     ;;
 
     let%test _ =
       (* Squared length is 4, edge is too long, 0 0 is nudged toward 0 2  *)
-      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 1) (Bignum.of_int 3) in
+      let p, _ = edge_model (vec 0 0) (vec 0 2) (Float.of_int 1) (Float.of_int 3) in
       (* Printf.printf !"%{sexp: Point.t}" p; *)
-      p == point 0 1
+      p == vec 0 1
     ;;
 
     let%test _ =
       (* Squared length is 4, edge is short long, 0 0 is nudged away from 0 2  *)
-      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 5) (Bignum.of_int 9) in
+      let p, _ = edge_model (vec 0 0) (vec 0 2) (Float.of_int 5) (Float.of_int 9) in
       (* Printf.printf !"%{sexp: Point.t}" p; *)
-      p == point 0 (-1)
+      p == vec 0 (-1)
     ;;
 
     module At_rest = struct
@@ -392,18 +419,17 @@ module Springs = struct
 
       let pose = create problem
 
-      let%test _ = force_one pose 0 ~neighbour:1 == Point.zero
+      let%test _ = force_one pose 0 ~neighbour:1 == Vec.zero
 
       let%test _ =
-        List.equal
-          (fun (k1, d1) (k2, d2) -> k1 = k2 && d1 == d2)
-          (forces pose ~frozen:Int.Set.empty |> Int.Map.to_alist)
-          [ 0, Point.zero; 1, Point.zero; 2, Point.zero; 3, Point.zero ]
+        let forces = edges pose ~frozen:Int.Set.empty |> Int.Map.to_alist in
+        List.is_empty forces
       ;;
 
       let%test _ =
-        let forces = forces ~frozen:Int.Set.empty pose in
-        Bignum.(energy forces = zero)
+        let forces = edges ~frozen:Int.Set.empty pose in
+        let energy = Forces.energy forces in
+        Float.(energy = zero)
       ;;
     end
   end

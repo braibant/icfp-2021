@@ -28,3 +28,15 @@ let unit_length t =
   let k = Bignum.(one / length) in
   scale t k
 ;;
+
+(* Normalize the given vector to one of U, L, D, R. We could be more precise here, and consider 8 neighbours. *)
+let normalize_dir (t : t) : t =
+  let open Bignum in
+  if t.y >= abs t.x (* U *)
+  then { x = zero; y = one }
+  else if t.y <= zero - abs t.x (* D *)
+  then { x = zero; y = zero - one }
+  else if zero <= t.x
+  then { x = one; y = zero }
+  else { x = zero - one; y = zero }
+;;
