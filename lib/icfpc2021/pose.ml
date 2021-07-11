@@ -6,6 +6,7 @@ type t =
   ; vertices : Point.t Int.Map.t
   ; orig_lengths : Bignum.t Int_int.Map.t
   ; hole_polygon : Polygon.t
+  ; bonuses : Pose_bonus.t list
   }
 [@@deriving fields]
 
@@ -28,6 +29,7 @@ let create problem =
           (from_, to_), Point.distance from_p to_p)
       |> Int_int.Map.of_alist_exn
   ; hole_polygon = Polygon.of_vertices problem.hole
+  ; bonuses = []
   }
 ;;
 
@@ -46,18 +48,32 @@ let load_exn ~problem ~filename =
 
 let save_exn t ~filename =
   let module J = Tiny_json.Json in
+  let bonuses =
+    if List.is_empty t.bonuses
+    then []
+    else
+      [ ( "bonuses"
+        , J.Array
+            (List.map t.bonuses ~f:(fun bonus ->
+                 J.Object
+                   [ "bonus", J.String (Bonus_kind.to_string bonus.kind)
+                   ; "problem", J.Number (Int.to_string bonus.problem)
+                   ])) )
+      ]
+  in
   let json =
     J.Object
-      [ ( "vertices"
-        , J.Array
-            (Int.Map.to_alist t.vertices
-            |> List.map ~f:snd
-            |> List.map ~f:(fun (point : Point.t) ->
-                   J.Array
-                     [ J.Number (Bignum.to_string_hum point.x)
-                     ; J.Number (Bignum.to_string_hum point.y)
-                     ])) )
-      ]
+      ([ ( "vertices"
+         , J.Array
+             (Int.Map.to_alist t.vertices
+             |> List.map ~f:snd
+             |> List.map ~f:(fun (point : Point.t) ->
+                    J.Array
+                      [ J.Number (Bignum.to_string_hum point.x)
+                      ; J.Number (Bignum.to_string_hum point.y)
+                      ])) )
+       ]
+      @ bonuses)
   in
   let out = Out_channel.create filename in
   let formatter = Format.formatter_of_out_channel out in
@@ -153,7 +169,7 @@ let dislikes_per_hole_vertex t =
 let dislikes t = dislikes_per_hole_vertex t |> Array.sum (module Int) ~f:Fn.id
 
 let find_pose_edge_that_matches_hole_edge t ~frozen =
-  (* go over all hole edges, looking for pose edges that will fit there. 
+  (* go over all hole edges, looking for pose edges that will fit there.
      If only one such fit found, return it *)
   let frozen_coords = Point.Set.map frozen ~f:(fun idx -> Map.find_exn t.vertices idx) in
   let res = Queue.create () in
