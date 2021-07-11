@@ -265,7 +265,7 @@ module State = struct
 
   let pan t (dx, dy) =
     let x, y = t.view_offset in
-    { t with view_offset = x + dx, y + dy }
+    { t with view_offset = x - dx, y - dy }
   ;;
 
   let spring_physics t =
@@ -388,7 +388,16 @@ let update_select_and_move_vertex state ~mouse_clicked ~mouse_x ~mouse_y ~space_
   if space_pressed then { state with selected_vertex = None } else state
 ;;
 
-let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height =
+let mouse_to_figure_space
+    ~mouse
+    ~scale
+    ~wall_x
+    ~wall_y
+    ~wall_width
+    ~wall_height
+    ~view_offset_x
+    ~view_offset_y
+  =
   match mouse with
   | None -> None, None
   | Some (mouse_x, mouse_y) ->
@@ -398,11 +407,14 @@ let mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
        && mouse_y < wall_y + wall_height
     then (
       let mouse_x =
-        Bignum.( * ) (Bignum.of_int (mouse_x - wall_x)) scale |> Bignum.round ~dir:`Down
+        Bignum.( * ) (Bignum.of_int (mouse_x - wall_x - view_offset_x)) scale
+        |> Bignum.round ~dir:`Down
       in
       let mouse_y =
         Bignum.( - )
-          (Bignum.( * ) (Bignum.of_int (wall_y + wall_height - mouse_y)) scale)
+          (Bignum.( * )
+             (Bignum.of_int (wall_y + wall_height + view_offset_y - mouse_y))
+             scale)
           Bignum.one
         |> Bignum.round ~dir:`Up
       in
@@ -439,8 +451,6 @@ let draw_problem
   let wall_x, wall_y, wall_height, wall_width =
     draw_wall ~wall_x ~wall_y ~wall_height ~wall_width
   in
-  let wall_x = wall_x + fst state.view_offset in
-  let wall_y = wall_y + snd state.view_offset in
   let scale = Bignum.( * ) state.scale (compute_scale ~prob ~wall_width ~wall_height) in
   let figure_to_wall_space Point.{ x; y } =
     let x =
@@ -472,7 +482,15 @@ let draw_problem
   draw_right_text (sprintf !"Solver speed: %.0f" (Stats.solver_speed stats));
   draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
   let mouse_x, mouse_y =
-    mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
+    mouse_to_figure_space
+      ~mouse
+      ~scale
+      ~wall_x
+      ~wall_y
+      ~wall_width
+      ~wall_height
+      ~view_offset_x:(fst state.view_offset)
+      ~view_offset_y:(snd state.view_offset)
   in
   draw_right_text
     (sprintf !"Mouse X: %{Bignum#hum}" (Option.value mouse_x ~default:Bignum.zero));
