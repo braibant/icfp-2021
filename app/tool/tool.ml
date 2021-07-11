@@ -20,7 +20,7 @@ let score ~dir problem_id =
   let problem_filename = Printf.sprintf "%s/prob%s.json" dir problem_id in
   let pose_filename = Printf.sprintf "%s/prob%s.answer.json" dir problem_id in
   let problem = Problem.load_exn ~filename:problem_filename in
-  let pose = Pose.load_exn ~problem ~filename:pose_filename in
+  let pose, _ = Pose.load_exn ~problem ~filename:pose_filename in
   problem_id, Score.evaluate pose |> Option.value ~default:Int.max_value
 ;;
 
@@ -54,7 +54,7 @@ let commands =
            and answer = anon ("ANSWER" %: Filename.arg_type) in
            fun () ->
              let problem = Problem.load_exn ~filename:problem in
-             let pose = Pose.load_exn ~problem ~filename:answer in
+             let pose, _ = Pose.load_exn ~problem ~filename:answer in
              match Pose.invalid_edges pose with
              | [] -> printf "%d\n" (Pose.dislikes pose)
              | _ -> printf "999999999\n") )

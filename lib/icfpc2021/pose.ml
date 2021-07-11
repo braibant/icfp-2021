@@ -53,10 +53,17 @@ let load_exn ~problem ~filename =
   let vertices =
     json |> J.getf "vertices" |> Common.json_as_point_list ~what:"pose vertices"
   in
-  set_vertices (create problem) vertices
+  let frozen_vertices =
+    json
+    |> J.getf_opt "frozen_vertices"
+    |> Option.value_map ~default:Int.Set.empty ~f:(fun json ->
+           json |> Common.json_as_int_list ~what:"frozen vertices" |> Int.Set.of_list)
+  in
+  let pose = set_vertices (create problem) vertices in
+  pose, frozen_vertices
 ;;
 
-let save_exn t ~filename =
+let save_exn t ~frozen_vertices ~filename =
   let module J = Tiny_json.Json in
   let bonuses =
     if List.is_empty t.bonuses
@@ -71,20 +78,26 @@ let save_exn t ~filename =
                    ])) )
       ]
   in
-  let json =
-    J.Object
-      ([ ( "vertices"
-         , J.Array
-             (Int.Map.to_alist t.vertices
-             |> List.map ~f:snd
-             |> List.map ~f:(fun (point : Point.t) ->
-                    J.Array
-                      [ J.Number (Bignum.to_string_hum point.x)
-                      ; J.Number (Bignum.to_string_hum point.y)
-                      ])) )
-       ]
-      @ bonuses)
+  let vertices =
+    [ ( "vertices"
+      , J.Array
+          (Int.Map.to_alist t.vertices
+          |> List.map ~f:snd
+          |> List.map ~f:(fun (point : Point.t) ->
+                 J.Array
+                   [ J.Number (Bignum.to_string_hum point.x)
+                   ; J.Number (Bignum.to_string_hum point.y)
+                   ])) )
+    ]
   in
+  let frozen_vertices =
+    [ ( "frozen_vertices"
+      , J.Array
+          (Int.Set.to_list frozen_vertices
+          |> List.map ~f:(fun i -> J.Number (Int.to_string i))) )
+    ]
+  in
+  let json = J.Object (vertices @ bonuses @ frozen_vertices) in
   let out = Out_channel.create filename in
   let formatter = Format.formatter_of_out_channel out in
   J.format formatter json;

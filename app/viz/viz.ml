@@ -83,10 +83,10 @@ module State = struct
     ; view_offset : int * int
     }
 
-  let create ~pose =
+  let create ~pose ~manually_frozen_vertices =
     { selected_vertex = None
     ; pose
-    ; manually_frozen_vertices = Int.Set.empty
+    ; manually_frozen_vertices
     ; history = []
     ; scale = Bignum.one
     ; view_offset = 0, 0
@@ -721,7 +721,10 @@ let rec interact
   in
   if !s_pressed
   then (
-    Pose.save_exn state.pose ~filename:answer_filename;
+    Pose.save_exn
+      state.pose
+      ~frozen_vertices:state.manually_frozen_vertices
+      ~filename:answer_filename;
     printf "Saved answer to %s!\n%!" answer_filename;
     let invalid_edges = Pose.invalid_edges state.pose in
     if List.length invalid_edges > 0
@@ -840,9 +843,9 @@ let display
     then Alternative_offsets.empty
     else Alternative_offsets.create prob
   in
-  let pose =
+  let pose, manually_frozen_vertices =
     match answer_filename with
-    | None -> Pose.create prob
+    | None -> Pose.create prob, Int.Set.empty
     | Some answer_filename -> Pose.load_exn ~problem:prob ~filename:answer_filename
   in
   let answer_filename =
@@ -857,7 +860,7 @@ let display
   let stats = Stats.create () in
   let () =
     interact
-      ~state:(State.create ~pose)
+      ~state:(State.create ~pose ~manually_frozen_vertices)
       ~stats
       ~answer_filename
       ~alternative_offsets

@@ -7,6 +7,12 @@ let json_as_bigint x =
     failwith "json_as_bigint: Expected string or number"
 ;;
 
+let json_as_int_list json ~what =
+  let module J = Tiny_json.Json in
+  try json |> J.as_list |> List.map ~f:(fun j -> J.as_int j) with
+  | _ -> failwithf "Parsing %s: expected list of integers: %s" what (J.show json) ()
+;;
+
 let json_as_point j ~what =
   let module J = Tiny_json.Json in
   match J.as_list j with
