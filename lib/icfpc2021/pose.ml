@@ -279,10 +279,10 @@ module Springs = struct
      Maybe, what we want to do is pick the closest hole vertex that we have not
      yet picked, and see if this improves things a bit. *)
 
-  let forces t : Point.t Int.Map.t =
+  let forces t ~frozen : Point.t Int.Map.t =
     let neighbours = Problem.neighbours t.problem in
-    Map.mapi neighbours ~f:(fun ~key:a ~data:neighbours ->
-        force_neighbours t a neighbours)
+    Map.filter_mapi neighbours ~f:(fun ~key:a ~data:neighbours ->
+        if Int.Set.mem frozen a then None else Some (force_neighbours t a neighbours))
   ;;
 
   let energy (forces : Point.t Int.Map.t) =
@@ -322,8 +322,8 @@ module Springs = struct
     else { x = zero - one; y = zero }
   ;;
 
-  let relax_one t =
-    let forces = forces t in
+  let relax_one t ~frozen =
+    let forces = forces t ~frozen in
     let energy = energy forces in
     match pick_one forces energy with
     | None ->
@@ -379,12 +379,12 @@ module Springs = struct
       let%test _ =
         List.equal
           (fun (k1, d1) (k2, d2) -> k1 = k2 && d1 == d2)
-          (forces pose |> Int.Map.to_alist)
+          (forces pose ~frozen:Int.Set.empty |> Int.Map.to_alist)
           [ 0, Point.zero; 1, Point.zero; 2, Point.zero; 3, Point.zero ]
       ;;
 
       let%test _ =
-        let forces = forces pose in
+        let forces = forces ~frozen:Int.Set.empty pose in
         Bignum.(energy forces = zero)
       ;;
     end
