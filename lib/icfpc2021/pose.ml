@@ -35,6 +35,7 @@ let create problem =
           let from_p = List.nth_exn problem.figure_vertices from_ in
           let to_p = List.nth_exn problem.figure_vertices to_ in
           (from_, to_), Point.sq_distance from_p to_p)
+      |> List.dedup_and_sort ~compare:(fun (e1, _) (e2, _) -> Int_int.compare e1 e2)
       |> Int_int.Map.of_alist_exn
   ; hole_polygon = Polygon.of_vertices problem.hole
   ; bonuses = []
