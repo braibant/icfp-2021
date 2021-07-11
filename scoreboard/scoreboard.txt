@@ -1,4 +1,4 @@
-Sun 11 Jul 02:56:19 BST 2021
+Sun 11 Jul 03:01:24 BST 2021
    ICFPC2021problemsscores
    login
 
@@ -19,7 +19,7 @@ Sun 11 Jul 02:56:19 BST 2021
    12    DiamondPrincess                         560076 
    13    iehn                                    556720 
    14    sanma                                   526353 
-   15    pegovka                                 488352 
+   15    pegovka                                 488560 
    16    Gon the Fox                             486381 
    17    Fish-Aobayama                           478297 
    18    udfew                                   472319 
@@ -30,7 +30,7 @@ Sun 11 Jul 02:56:19 BST 2021
    23    WILD BASHKORT MAGES                     430316 
    24    Olympia                                 399147 
    25    trup16                                  394847 
-   26    The Cat is #1!!                         394401 
+   26    The Cat is #1!!                         394432 
    27    KMC                                     393458 
    28    Yoshida Chicken Rice                    392276 
    29    Powder                                  392190 
@@ -41,7 +41,7 @@ Sun 11 Jul 02:56:19 BST 2021
    34    Bunny Girl Senpai                       375305 
    35    codingteam                              369872 
    36    Side Effects May Include...             366171 
-   37    Cult of the Bound Variable              364229 
+   37    Cult of the Bound Variable              364266 
    38    xyznlp                                  355177 
    39    ATS                                     354133 
    40    negainoido                              347770 
@@ -49,11 +49,11 @@ Sun 11 Jul 02:56:19 BST 2021
    42    Snakes, Monkeys and Two Smoking Lambdas 342542 
    43    Raging Mushrooms                        341616 
    44    Skobochka                               330115 
-   45    Pigimarl                                315200 
-   46    Channable                               309293 
-   47    THIRTEEN                                304016 
-   48    cwfork                                  298299 
-   49    kstm.org                                294836 
+   45    kstm.org                                328088 
+   46    Pigimarl                                315200 
+   47    Channable                               309293 
+   48    THIRTEEN                                304016 
+   49    cwfork                                  298299 
    50    fixstars                                283871 
    51    '; CREATE TABLE fun(); --               272488 
    52    Zebra Infused Hamsters                  267057 
@@ -72,9 +72,9 @@ Sun 11 Jul 02:56:19 BST 2021
    65    All your poses are belong to us         197216 
    66    Rogue Operations                        193380 
    67    uguu.org                                188656 
-   68    cashto                                  183401 
-   69    geomon                                  183300 
-   70    uni                                     178656 
+   68    uni                                     187962 
+   69    cashto                                  183401 
+   70    geomon                                  183300 
    71    Eldies                                  173618 
    72    The aRtful MUser                        166480 
    73    Goretz                                  156968 
@@ -111,7 +111,7 @@ Sun 11 Jul 02:56:19 BST 2021
    104   The Enigma of Anilambda Fold            36211  
    105   The PET in the wall                     33847  
    106   The Blind Hen                           32296  
-   107   make_it_stream                          31588  
+   107   make_it_stream                          32033  
    108   yorofuwa                                31318  
    109   xyz600                                  31063  
    110   Office 14                               27648  
