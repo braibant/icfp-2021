@@ -411,6 +411,16 @@ let draw_problem
   G.set_color G.white;
   G.set_line_width (Int.max 1 (px / 4));
   List.iter hole_vertices ~f:(fun (x, y) -> G.draw_circle x y 6);
+  (* Draw the bonuses *)
+  List.iter prob.bonuses ~f:(fun bonus ->
+      let x, y = figure_to_wall_space bonus.position in
+      G.set_color (G.rgb 255 200 100);
+      G.fill_circle (x + (px / 2)) (y + (px / 2)) 15;
+      G.set_color G.white;
+      G.fill_rect x y px px;
+      G.set_color G.black;
+      G.moveto (x + px + 2) (y + (px / 2) - 5);
+      G.draw_string (sprintf "%s %d" (Bonus_kind.to_string bonus.kind) bonus.problem));
   (* Draw the red stick figure. *)
   G.set_line_width (Int.max 1 (px / 2));
   let scaled_pose_vertices =
