@@ -88,6 +88,38 @@ let pick_next_vertex ~vertices ~vertices_left ~vertex_edges ~frozen_vertices =
   next_vertex, conns, num_conns
 ;;
 
+module Vertex_and_vertex_and_position = struct
+  module T = struct
+    type t = int * int * Point.t [@@deriving compare, hash, sexp]
+  end
+
+  include T
+  include Hashable.Make (T)
+end
+
+let alternative_positions_from_at_position_to =
+  let cache = Vertex_and_vertex_and_position.Table.create () in
+  let hits = ref 0 in
+  let misses = ref 0 in
+  fun ~alternative_offsets ~from_ ~to_ ~position ->
+    let key = from_, to_, (position : Point.t) in
+    match Hashtbl.find cache key with
+    | Some res ->
+      incr hits;
+      (* printf "Cache hit! hit: %d; miss: %d\n%!" !hits !misses; *)
+      res
+    | None ->
+      incr misses;
+      let res =
+        let aos = Alternative_offsets.find alternative_offsets from_ to_ in
+        List.map aos ~f:(fun (dx, dy) ->
+            Point.create ~x:Bignum.(position.x + dx) ~y:Bignum.(position.y + dy))
+        |> Point.Set.of_list
+      in
+      Hashtbl.set cache ~key ~data:res;
+      res
+;;
+
 let find_alternative_positions_for_vertex
     vertex
     ~connections_to_frozen_vertices
@@ -96,17 +128,11 @@ let find_alternative_positions_for_vertex
   =
   let alternative_positions_per_connected_node =
     List.map connections_to_frozen_vertices ~f:(fun connected_frozen_vertex ->
-        let aos =
-          Alternative_offsets.find alternative_offsets connected_frozen_vertex vertex
-        in
-        let connected_frozen_vertex =
-          Map.find_exn (Pose.vertices pose) connected_frozen_vertex
-        in
-        List.map aos ~f:(fun (dx, dy) ->
-            Point.create
-              ~x:Bignum.(connected_frozen_vertex.x + dx)
-              ~y:Bignum.(connected_frozen_vertex.y + dy))
-        |> Point.Set.of_list)
+        alternative_positions_from_at_position_to
+          ~alternative_offsets
+          ~from_:connected_frozen_vertex
+          ~position:(Map.find_exn (Pose.vertices pose) connected_frozen_vertex)
+          ~to_:vertex)
   in
   let res =
     match alternative_positions_per_connected_node with

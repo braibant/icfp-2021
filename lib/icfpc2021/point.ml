@@ -5,11 +5,12 @@ module T = struct
     { x : Bignum.t
     ; y : Bignum.t
     }
-  [@@deriving compare, fields, sexp]
+  [@@deriving compare, fields, hash, sexp]
 end
 
 include T
 include Comparable.Make (T)
+include Hashable.Make (T)
 
 let create = Fields.create
 let distance a b = Bignum.(((a.x - b.x) ** 2) + ((a.y - b.y) ** 2))
