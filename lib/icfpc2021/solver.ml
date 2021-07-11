@@ -5,11 +5,18 @@ module Kind = struct
     | Dfs
     | Bfs
   [@@deriving sexp]
+
+  let all = [| Dfs; Bfs |]
+
+  let to_string = function
+    | Dfs -> "Depth-first"
+    | Bfs -> "Breadth-first"
+  ;;
 end
 
 module Incremental = struct
   type t =
-    { kind : Kind.t
+    { kind : [ `Bfs | `Dfs ]
     ; pose : Pose.t
     ; manually_frozen_vertices : Int.Set.t
     ; frozen_vertices : Int.Set.t
@@ -476,6 +483,31 @@ module Incremental = struct
     in
     incremental_loop ~stack:stack0 ~work_to_do:work_to_do0
   ;;
+
+  let top_create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
+    let t = create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets in
+    match kind with
+    | `Bfs -> create_initial_bfs_stack t
+    | `Dfs -> create_initial_dfs_stack t
+  ;;
+
+  let top_run (stack : Stack_frame.t list) ~work_to_do =
+    match stack with
+    | [] -> failwith "Incremental solver stack empty"
+    | frame :: _ as stack ->
+      let res =
+        match frame.solver_t.kind with
+        | `Dfs -> run_dfs ~work_to_do ~stack
+        | `Bfs -> run_bfs ~work_to_do ~stack
+      in
+      (match res with
+      | `Done stack -> `Done stack
+      | `Todo stack -> `Todo stack
+      | `Failed _ ->
+        (match stack with
+        | [] | [ _ ] -> `Failed
+        | _ :: rest_stack -> `Todo rest_stack))
+  ;;
 end
 
 type t = Incremental of Incremental.Stack_frame.t list
@@ -483,35 +515,28 @@ type t = Incremental of Incremental.Stack_frame.t list
 let create (kind : Kind.t) ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
   match kind with
   | Dfs ->
-    let solver =
-      Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
-    in
-    let stack = Incremental.create_initial_dfs_stack solver in
-    Incremental stack
+    Incremental
+      (Incremental.top_create
+         `Dfs
+         ~initial_pose
+         ~manually_frozen_vertices
+         ~alternative_offsets)
   | Bfs ->
-    let solver =
-      Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
-    in
-    let stack = Incremental.create_initial_bfs_stack solver in
-    Incremental stack
+    Incremental
+      (Incremental.top_create
+         `Bfs
+         ~initial_pose
+         ~manually_frozen_vertices
+         ~alternative_offsets)
 ;;
 
 let run t ~work_to_do =
   match t with
-  | Incremental [] -> failwith "Incremental solver stack empty"
-  | Incremental (frame :: _ as stack) ->
-    let res =
-      match frame.solver_t.kind with
-      | Dfs -> Incremental.run_dfs ~work_to_do ~stack
-      | Bfs -> Incremental.run_bfs ~work_to_do ~stack
-    in
-    (match res with
-    | `Done stack -> `Done (Incremental stack)
-    | `Todo stack -> `Todo (Incremental stack)
-    | `Failed _ ->
-      (match stack with
-      | [] | [ _ ] -> `Failed
-      | _ :: rest_stack -> `Todo (Incremental rest_stack)))
+  | Incremental incremental ->
+    (match Incremental.top_run incremental ~work_to_do with
+    | `Done incremental -> `Done (Incremental incremental)
+    | `Todo incremental -> `Todo (Incremental incremental)
+    | `Failed -> `Failed)
 ;;
 
 let pose t =
