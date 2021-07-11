@@ -328,10 +328,10 @@ module Springs = struct
     match pick_one forces energy with
     | None ->
       (* The system is at rest *)
-      Printf.eprintf "System at rest (energy %.2f)\n%!" (Bignum.to_float energy);
+      (* Printf.eprintf "System at rest (energy %.2f)\n%!" (Bignum.to_float energy); *)
       t.vertices
     | Some vertex ->
-      Printf.eprintf "Moving %i (energy %.2f)\n%!" vertex (Bignum.to_float energy);
+      (* Printf.eprintf "Moving %i (energy %.2f)\n%!" vertex (Bignum.to_float energy); *)
       let dir = Map.find_exn forces vertex |> normalize_dir in
       let point = Point.(dir + Int.Map.find_exn t.vertices vertex) in
       let vertices = Int.Map.set t.vertices ~key:vertex ~data:point in
