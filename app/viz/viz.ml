@@ -470,7 +470,7 @@ let draw_problem
      wall space. This matters if the figure is being scaled up. *)
   let px =
     let open Bignum in
-    round (one / scale) ~dir:`Nearest |> to_int_exn
+    round (one + one + (one / scale)) ~dir:`Nearest |> to_int_exn
   in
   let draw_right_text =
     let right_text_count = ref 0 in
