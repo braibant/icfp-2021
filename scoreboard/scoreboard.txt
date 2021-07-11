@@ -1,93 +1,93 @@
-Sun 11 Jul 04:01:25 BST 2021
+Sun 11 Jul 04:31:25 BST 2021
    ICFPC2021problemsscores
    login
 
                                    Scoreboard
 
    place team                                    score  
-   1     Unagi                                   916085 
-   2     RGBTeam                                 903888 
-   3     Special Weekend                         864137 
-   4     Closed and Restricted Boltzmann Machine 694511 
-   5     manarimo                                685521 
-   6     All In                                  657321 
-   7     chirijako                               614910 
-   8     301                                     614478 
-   9     Sosuupoyo(sugoi)                        612085 
-   10    Folding at home                         595363 
-   11    iehn                                    593467 
-   12    Aim Tech + Godnotent                    584517 
-   13    DiamondPrincess                         581159 
-   14    sanma                                   576105 
-   15    pegovka                                 523149 
-   16    Gon the Fox                             496825 
-   17    Fish-Aobayama                           478297 
-   18    udfew                                   472319 
-   19    lambda-llama                            460053 
+   1     Unagi                                   950533 
+   2     RGBTeam                                 900186 
+   3     Special Weekend                         864093 
+   4     chirijako                               774981 
+   5     Closed and Restricted Boltzmann Machine 687124 
+   6     manarimo                                685479 
+   7     DiamondPrincess                         659482 
+   8     All In                                  657283 
+   9     301                                     612056 
+   10    Sosuupoyo(sugoi)                        603071 
+   11    Folding at home                         593591 
+   12    sanma                                   592306 
+   13    Aim Tech + Godnotent                    584491 
+   14    iehn                                    583732 
+   15    pegovka                                 521227 
+   16    Gon the Fox                             496807 
+   17    Fish-Aobayama                           488323 
+   18    udfew                                   472302 
+   19    lambda-llama                            460043 
    20    Chordify                                453161 
-   21    CowDay                                  439293 
-   22    Independent Set                         434825 
-   23    WILD BASHKORT MAGES                     430316 
-   24    Cult of the Bound Variable              404234 
-   25    Olympia                                 397828 
-   26    The Cat is #1!!                         396811 
+   21    CowDay                                  446375 
+   22    Independent Set                         434806 
+   23    WILD BASHKORT MAGES                     430284 
+   24    Cult of the Bound Variable              429417 
+   25    Olympia                                 395744 
+   26    The Cat is #1!!                         395499 
    27    trup16                                  394847 
-   28    Bunny Girl Senpai                       394145 
-   29    KMC                                     393458 
-   30    Yoshida Chicken Rice                    392276 
-   31    Powder                                  392190 
-   32    bowwowforeach                           390923 
-   33    mutability                              385101 
-   34    ichyo                                   382613 
-   35    Rotten Lambdas                          380972 
-   36    codingteam                              369872 
-   37    Side Effects May Include...             368334 
-   38    negainoido                              355789 
-   39    xyznlp                                  355177 
-   40    ATS                                     354133 
+   28    KMC                                     394144 
+   29    Bunny Girl Senpai                       394141 
+   30    Yoshida Chicken Rice                    392262 
+   31    Powder                                  392169 
+   32    bowwowforeach                           390909 
+   33    mutability                              385079 
+   34    ichyo                                   382597 
+   35    Rotten Lambdas                          380949 
+   36    Side Effects May Include...             370291 
+   37    codingteam                              369872 
+   38    negainoido                              355771 
+   39    xyznlp                                  355138 
+   40    ATS                                     354110 
    41    Snakes, Monkeys and Two Smoking Lambdas 347963 
-   42    blue-poser                              343681 
-   43    Raging Mushrooms                        341616 
-   44    kstm.org                                335848 
-   45    Skobochka                               329320 
-   46    Pigimarl                                315200 
-   47    Channable                               309293 
-   48    THIRTEEN                                304016 
-   49    cwfork                                  298299 
-   50    fixstars                                283871 
-   51    グレースたなか                                 277636 
-   52    '; CREATE TABLE fun(); --               272488 
+   42    blue-poser                              343666 
+   43    Raging Mushrooms                        341601 
+   44    kstm.org                                334861 
+   45    Skobochka                               327928 
+   46    Pigimarl                                315179 
+   47    Channable                               309268 
+   48    THIRTEEN                                304003 
+   49    cwfork                                  298291 
+   50    fixstars                                283860 
+   51    グレースたなか                                 276705 
+   52    '; CREATE TABLE fun(); --               272485 
    53    code-o-matic                            268287 
-   54    Zebra Infused Hamsters                  267074 
-   55    LILiK                                   264221 
-   56    TBD                                     261165 
-   57    jabber.ru                               260427 
-   58    ksmlb                                   255046 
+   54    Zebra Infused Hamsters                  267066 
+   55    LILiK                                   264201 
+   56    jabber.ru                               260427 
+   57    TBD                                     255474 
+   58    ksmlb                                   255028 
    59    Nik & Tonsky                            246363 
-   60    TeamDev                                 231639 
-   61    We didn't mean to use Python            227664 
-   62    Egér a marson                           214656 
-   63    ACCESS_VIOLATION                        213879 
-   64    Frictionless Bananas                    206840 
-   65    uguu.org                                203291 
-   66    All your poses are belong to us         197216 
-   67    cashto                                  194689 
-   68    Rogue Operations                        193380 
-   69    uni                                     187538 
-   70    geomon                                  183300 
-   71    Eldies                                  173618 
-   72    The aRtful MUser                        167962 
+   60    cashto                                  240572 
+   61    TeamDev                                 231628 
+   62    We didn't mean to use Python            225885 
+   63    Egér a marson                           214656 
+   64    ACCESS_VIOLATION                        213862 
+   65    uguu.org                                209046 
+   66    Frictionless Bananas                    206840 
+   67    All your poses are belong to us         197216 
+   68    Rogue Operations                        193371 
+   69    The aRtful MUser                        192375 
+   70    uni                                     187347 
+   71    geomon                                  183287 
+   72    Eldies                                  173601 
    73    Goretz                                  156968 
    74    paiv                                    138314 
    75    blueboars team                          137927 
    76    Wheezards                               129401 
-   77    Netvorchesk                             119935 
+   77    Netvorchesk                             119922 
    78    Sigmoid Freud                           117524 
    79    Goto 11                                 115411 
    80    Piggybank Software                      111458 
    81    Bottle kids!                            109825 
    82    Vanilla Bears                           96477  
-   83    okaduki                                 90428  
+   83    okaduki                                 90416  
    84    team classified                         86317  
    85    IKS                                     83824  
    86    Sal's Pals                              82798  
@@ -97,12 +97,12 @@ Sun 11 Jul 04:01:25 BST 2021
    90    h25                                     67937  
    91    Sjoerd Visscher                         67901  
    92    Team Sampou                             66586  
-   93    WinterMUTE                              58978  
+   93    WinterMUTE                              58960  
    94    Tetris Incompetence                     58026  
    95    Overfull \hbox                          56673  
    96    Lyrical Tokarev                         56424  
-   97    Ichigo Nudibranch                       54665  
-   98    OMG ICFP FTW                            51168  
+   97    OMG ICFP FTW                            55561  
+   98    Ichigo Nudibranch                       54665  
    99    Sunspear                                48609  
    100   The Enigma of Anilambda Fold            44610  
    101   λx.                                     44149  
@@ -119,11 +119,11 @@ Sun 11 Jul 04:01:25 BST 2021
    112   qr0m4s4n_tø4m                           25397  
    113   Free Tacos                              25153  
    114   lost in sente                           22577  
-   115   182020                                  19240  
-   116   R22b                                    18858  
-   117   taxidriver                              17455  
-   118   chaos                                   17337  
-   119   raz                                     17261  
+   115   raz                                     21642  
+   116   182020                                  19240  
+   117   R22b                                    18858  
+   118   taxidriver                              17455  
+   119   chaos                                   17337  
    120   dis_functional                          13372  
    121   georgia                                 10388  
    122   bymski                                  9855   
