@@ -897,7 +897,8 @@ let commands =
                "-solver-kind"
                (optional_with_default
                   Solver.Kind.Dfs
-                  (Arg_type.of_alist_exn Solver.Kind.[ "dfs", Dfs; "bfs", Bfs ]))
+                  (Arg_type.of_alist_exn
+                     Solver.Kind.[ "dfs", Dfs; "bfs", Bfs; "chf", Chf ]))
                ~doc:"dfs|bfs Which solver to use"
            in
            fun () ->

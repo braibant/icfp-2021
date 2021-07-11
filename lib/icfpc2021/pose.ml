@@ -133,13 +133,17 @@ let move t vertex ~to_:point =
   { t with vertices = Map.set t.vertices ~key:vertex ~data:point }
 ;;
 
+let edge_invalid t edge =
+  let from_, to_ = edge in
+  let new_length =
+    Point.sq_distance (Map.find_exn t.vertices from_) (Map.find_exn t.vertices to_)
+  in
+  deformation_badness t edge new_length
+;;
+
 let invalid_edges t =
   List.filter_map t.problem.figure_edges ~f:(fun edge ->
-      let from_, to_ = edge in
-      let new_length =
-        Point.sq_distance (Map.find_exn t.vertices from_) (Map.find_exn t.vertices to_)
-      in
-      Option.map (deformation_badness t edge new_length) ~f:(fun badness -> edge, badness))
+      Option.map (edge_invalid t edge) ~f:(fun badness -> edge, badness))
 ;;
 
 let shift t ~frozen (dx, dy) =

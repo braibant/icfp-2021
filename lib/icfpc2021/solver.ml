@@ -4,12 +4,13 @@ module Kind = struct
   type t =
     | Dfs
     | Bfs
+    | Chf
   [@@deriving sexp]
 end
 
 module Incremental = struct
   type t =
-    { kind : Kind.t
+    { kind : [ `Bfs | `Dfs ]
     ; pose : Pose.t
     ; manually_frozen_vertices : Int.Set.t
     ; frozen_vertices : Int.Set.t
@@ -476,46 +477,204 @@ module Incremental = struct
     in
     incremental_loop ~stack:stack0 ~work_to_do:work_to_do0
   ;;
+
+  let top_create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
+    let t = create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets in
+    match kind with
+    | `Bfs -> create_initial_bfs_stack t
+    | `Dfs -> create_initial_dfs_stack t
+  ;;
+
+  let top_run (stack : Stack_frame.t list) ~work_to_do =
+    match stack with
+    | [] -> failwith "Incremental solver stack empty"
+    | frame :: _ as stack ->
+      let res =
+        match frame.solver_t.kind with
+        | `Dfs -> run_dfs ~work_to_do ~stack
+        | `Bfs -> run_bfs ~work_to_do ~stack
+      in
+      (match res with
+      | `Done stack -> `Done stack
+      | `Todo stack -> `Todo stack
+      | `Failed _ ->
+        (match stack with
+        | [] | [ _ ] -> `Failed
+        | _ :: rest_stack -> `Todo rest_stack))
+  ;;
+
+  let pose (stack : Stack_frame.t list) = (List.hd_exn stack).solver_t.pose
 end
 
-type t = Incremental of Incremental.Stack_frame.t list
+module Complete_hole_fitter = struct
+  type t =
+    { pose : Pose.t
+    ; alternative_offsets : Alternative_offsets.t
+    ; hole_assignment : int array
+          (** for each hole point, which vertex is assigned to it *)
+    ; num_vertices : int
+    ; inner : Incremental.Stack_frame.t list
+    }
+
+  let next_hole_assignment hole_assignment ~num_vertices =
+    if num_vertices < Array.length hole_assignment
+    then failwith "Too few figure vertices to assign to hole vertices";
+    let hole_assignment = Array.copy hole_assignment in
+    let find_unused_vertex ~after ~used =
+      let rec unused_loop to_try =
+        if to_try = after then failwith "Impossible given the assert above";
+        if Set.mem used to_try
+        then unused_loop ((1 + to_try) mod num_vertices)
+        else to_try
+      in
+      unused_loop ((1 + after) mod num_vertices)
+    in
+    let rec loop idx ~used =
+      if idx = Array.length hole_assignment - 1
+      then (
+        let x = find_unused_vertex ~after:hole_assignment.(idx) ~used in
+        let wrapped_around = x < hole_assignment.(idx) in
+        hole_assignment.(idx) <- x;
+        wrapped_around)
+      else if loop (idx + 1) ~used:(Set.add used hole_assignment.(idx))
+      then (
+        (* We wrapped around at the next step, so increment here
+             now. *)
+        let x = find_unused_vertex ~after:hole_assignment.(idx) ~used in
+        let wrapped_around = x < hole_assignment.(idx) in
+        hole_assignment.(idx) <- x;
+        wrapped_around)
+      else false
+    in
+    let (_ : bool) = loop 0 ~used:Int.Set.empty in
+    hole_assignment
+  ;;
+
+  let create ~(initial_pose : Pose.t) ~alternative_offsets =
+    let num_vertices = Map.length (Pose.vertices initial_pose) in
+    let hole_assignment =
+      let buf = Array.create 0 ~len:(List.length (Pose.problem initial_pose).hole) in
+      for i = 0 to Array.length buf - 1 do
+        buf.(i) <- i
+      done;
+      buf.(Array.length buf - 1) <- buf.(Array.length buf - 1) - 1;
+      buf
+    in
+    (* printf !"Hole assignment: %{sexp#hum: int array}\n%!" hole_assignment; *)
+    { pose = initial_pose
+    ; alternative_offsets
+    ; hole_assignment
+    ; num_vertices
+    ; inner = []
+    }
+  ;;
+
+  let edges_between_hole_assigned_vertices_are_valid vertices ~pose =
+    let vertices = Int.Set.of_list vertices in
+    let edges_between_hole_assigned_vertices =
+      List.filter (Pose.problem pose).figure_edges ~f:(fun (a, b) ->
+          Set.mem vertices a && Set.mem vertices b)
+    in
+    List.for_all edges_between_hole_assigned_vertices ~f:(fun edge ->
+        Option.is_none (Pose.edge_invalid pose edge) && Pose.edge_inside_hole pose edge)
+  ;;
+
+  let assign_holes t ~work_to_do =
+    let rec find_valid_hole_assignment t ~work_to_do =
+      if work_to_do <= 0
+      then `Todo t
+      else (
+        let t =
+          { t with
+            hole_assignment =
+              next_hole_assignment t.hole_assignment ~num_vertices:t.num_vertices
+          }
+        in
+        printf !"Searching hole assignment: %{sexp#hum: int array}\n%!" t.hole_assignment;
+        let hole_assigned_vertices =
+          List.zip_exn (Array.to_list t.hole_assignment) (Pose.problem t.pose).hole
+        in
+        let t =
+          List.fold_left hole_assigned_vertices ~init:t ~f:(fun t (vx, hole_position) ->
+              { t with pose = Pose.move t.pose vx ~to_:hole_position })
+        in
+        if edges_between_hole_assigned_vertices_are_valid
+             (List.map hole_assigned_vertices ~f:fst)
+             ~pose:t.pose
+        then (
+          printf !"Found hole assignment: %{sexp#hum: int array}\n%!" t.hole_assignment;
+          `Found t)
+        else find_valid_hole_assignment t ~work_to_do:(work_to_do - 1))
+    in
+    match find_valid_hole_assignment t ~work_to_do with
+    | `Failed -> `Failed
+    | `Todo t -> `Todo t
+    | `Found t ->
+      let incremental =
+        Incremental.top_create
+          `Dfs
+          ~initial_pose:t.pose
+          ~manually_frozen_vertices:(Array.to_list t.hole_assignment |> Int.Set.of_list)
+          ~alternative_offsets:t.alternative_offsets
+      in
+      `Todo { t with inner = incremental }
+  ;;
+
+  let run t ~work_to_do =
+    match t.inner with
+    | [] -> assign_holes t ~work_to_do
+    | incremental ->
+      (match Incremental.top_run incremental ~work_to_do with
+      | `Done incremental ->
+        `Done { t with inner = []; pose = Incremental.pose incremental }
+      | `Todo incremental ->
+        `Todo { t with inner = incremental; pose = Incremental.pose incremental }
+      | `Failed -> assign_holes { t with inner = [] } ~work_to_do)
+  ;;
+end
+
+type t =
+  | Incremental of Incremental.Stack_frame.t list
+  | Complete_hole_fitter of Complete_hole_fitter.t
 
 let create (kind : Kind.t) ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
   match kind with
   | Dfs ->
-    let solver =
-      Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
-    in
-    let stack = Incremental.create_initial_dfs_stack solver in
-    Incremental stack
+    Incremental
+      (Incremental.top_create
+         `Dfs
+         ~initial_pose
+         ~manually_frozen_vertices
+         ~alternative_offsets)
   | Bfs ->
-    let solver =
-      Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
-    in
-    let stack = Incremental.create_initial_bfs_stack solver in
-    Incremental stack
+    Incremental
+      (Incremental.top_create
+         `Bfs
+         ~initial_pose
+         ~manually_frozen_vertices
+         ~alternative_offsets)
+  | Chf ->
+    let solver = Complete_hole_fitter.create ~initial_pose ~alternative_offsets in
+    Complete_hole_fitter solver
 ;;
 
 let run t ~work_to_do =
   match t with
-  | Incremental [] -> failwith "Incremental solver stack empty"
-  | Incremental (frame :: _ as stack) ->
-    let res =
-      match frame.solver_t.kind with
-      | Dfs -> Incremental.run_dfs ~work_to_do ~stack
-      | Bfs -> Incremental.run_bfs ~work_to_do ~stack
-    in
-    (match res with
-    | `Done stack -> `Done (Incremental stack)
-    | `Todo stack -> `Todo (Incremental stack)
-    | `Failed _ ->
-      (match stack with
-      | [] | [ _ ] -> `Failed
-      | _ :: rest_stack -> `Todo (Incremental rest_stack)))
+  | Incremental incremental ->
+    (match Incremental.top_run incremental ~work_to_do with
+    | `Done incremental -> `Done (Incremental incremental)
+    | `Todo incremental -> `Todo (Incremental incremental)
+    | `Failed -> `Failed)
+  | Complete_hole_fitter chf ->
+    (match Complete_hole_fitter.run chf ~work_to_do with
+    | `Done chf -> `Done (Complete_hole_fitter chf)
+    | `Todo chf -> `Todo (Complete_hole_fitter chf)
+    | `Failed -> `Failed)
 ;;
 
 let pose t =
   match t with
   | Incremental (frame :: _) -> frame.solver_t.pose
   | Incremental [] -> failwith "Incremental solver stack empty"
+  | Complete_hole_fitter chf -> chf.pose
 ;;

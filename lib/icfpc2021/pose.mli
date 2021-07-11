@@ -20,6 +20,7 @@ val segment : t -> Edge.t -> Segment.t
 val vertex : t -> int -> Point.t
 
 (* query *)
+val edge_invalid : t -> Edge.t -> Bignum.t option
 val invalid_edges : t -> (Edge.t * Bignum.t) list
 val min_max_length_sq_for_edge : t -> Edge.t -> Bignum.t * Bignum.t
 val edge_inside_hole : t -> Edge.t -> bool
