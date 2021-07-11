@@ -5,6 +5,13 @@ module Kind = struct
     | Dfs
     | Bfs
   [@@deriving sexp]
+
+  let all = [| Dfs; Bfs |]
+
+  let to_string = function
+    | Dfs -> "Depth-first"
+    | Bfs -> "Breadth-first"
+  ;;
 end
 
 module Incremental = struct

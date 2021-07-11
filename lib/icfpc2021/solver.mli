@@ -5,6 +5,9 @@ module Kind : sig
     | Dfs
     | Bfs
   [@@deriving sexp]
+
+  val all : t array
+  val to_string : t -> string
 end
 
 type t

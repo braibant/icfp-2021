@@ -405,6 +405,7 @@ let draw_problem
     ~show_alternative_offsets
     ~state
     ~(stats : Stats.t)
+    ~solver_kind_idx
   =
   let prob = Pose.problem state.pose in
   let wall_x, wall_y, wall_height, wall_width =
@@ -439,6 +440,7 @@ let draw_problem
       draw_right_text ~wall_x ~wall_y ~wall_height ~wall_width ~right_text_count str
   in
   draw_right_text (sprintf !"FPS: %.0f" stats.fps);
+  draw_right_text (sprintf !"Solver: %{Solver.Kind}" Solver.Kind.all.(solver_kind_idx));
   draw_right_text (sprintf !"Solver speed: %.0f" (Stats.solver_speed stats));
   draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
   let mouse_x, mouse_y =
@@ -637,6 +639,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press * to randomize unfrozen vertices");
   draw_bottom_text (sprintf !"Press +-0,JKLI to zoom/pan");
   draw_bottom_text (sprintf !"Press p/P to enable/disable spring physics");
+  draw_bottom_text (sprintf !"Press TAB to cycle solvers");
   state
 ;;
 
@@ -657,7 +660,7 @@ let rec interact
     ~show_alternative_offsets
     ~solver
     ~work_per_frame
-    ~solver_kind
+    ~solver_kind_idx
   =
   let stats = Stats.frame_start stats in
   let shutting_down = ref false in
@@ -683,11 +686,13 @@ let rec interact
   let stop_solver = ref false in
   let spring_physics = ref 0 in
   let shift = ref (0, 0) in
+  let tab_pressed = ref false in
   let () =
     while G.key_pressed () do
       match G.read_key () with
       | 'q' | '\027' -> shutting_down := true
       | ' ' -> space_pressed := true
+      | '\t' -> tab_pressed := true
       | 's' -> s_pressed := true
       | 'f' -> f_pressed := true
       | 'F' -> freeze_all_pressed := true
@@ -780,14 +785,20 @@ let rec interact
       ~show_alternative_offsets:!show_alternative_offsets
       ~state
       ~stats
+      ~solver_kind_idx
   in
   let solver = if !stop_solver then None else solver in
+  let solver, solver_kind_idx =
+    if !tab_pressed
+    then None, (solver_kind_idx + 1) mod Array.length Solver.Kind.all
+    else solver, solver_kind_idx
+  in
   let solver, state, stats =
     if !start_solver && Option.is_none solver
     then (
       let solver =
         Solver.create
-          solver_kind
+          Solver.Kind.all.(solver_kind_idx)
           ~initial_pose:state.pose
           ~manually_frozen_vertices:state.manually_frozen_vertices
           ~alternative_offsets
@@ -826,17 +837,11 @@ let rec interact
       ~alternative_offsets
       ~show_alternative_offsets
       ~solver
-      ~solver_kind
+      ~solver_kind_idx
       ~work_per_frame)
 ;;
 
-let display
-    ~filename
-    ~answer_filename
-    ~no_alternative_offsets
-    ~work_per_frame
-    ~solver_kind
-  =
+let display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame =
   let prob = Problem.load_exn ~filename in
   let alternative_offsets =
     if no_alternative_offsets
@@ -866,7 +871,7 @@ let display
       ~alternative_offsets
       ~show_alternative_offsets:(ref false)
       ~solver:None
-      ~solver_kind
+      ~solver_kind_idx:0
       ~work_per_frame
   in
   G.close_graph ()
@@ -892,21 +897,9 @@ let commands =
                "-work-to-do"
                (optional_with_default 10 int)
                ~doc:"INT The amount of work the solver should do per animation frame"
-           and solver_kind =
-             flag
-               "-solver-kind"
-               (optional_with_default
-                  Solver.Kind.Dfs
-                  (Arg_type.of_alist_exn Solver.Kind.[ "dfs", Dfs; "bfs", Bfs ]))
-               ~doc:"dfs|bfs Which solver to use"
            in
            fun () ->
-             display
-               ~filename
-               ~answer_filename
-               ~no_alternative_offsets
-               ~work_per_frame
-               ~solver_kind) )
+             display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame) )
     ]
 ;;
 
