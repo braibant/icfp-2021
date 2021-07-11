@@ -148,22 +148,31 @@ let dislikes_per_hole_vertex t =
 
 let dislikes t = dislikes_per_hole_vertex t |> Array.sum (module Int) ~f:Fn.id
 
-let find_pose_edge_that_matches_hole_edge t =
+let find_pose_edge_that_matches_hole_edge t ~frozen =
   (* go over all hole edges, looking for pose edges that will fit there. 
      If only one such fit found, return it *)
+  let frozen_coords = Point.Set.map frozen ~f:(fun idx -> Map.find_exn t.vertices idx) in
   let res = Queue.create () in
   for i = 0 to Array.length t.hole_polygon - 1 do
     let prev = if i = 0 then Array.length t.hole_polygon - 1 else i - 1 in
     let hole_from_p = t.hole_polygon.(prev) in
     let hole_to_p = t.hole_polygon.(i) in
-    let hole_edge_length = Point.distance hole_from_p hole_to_p in
-    let matching_edges =
-      List.filter_map t.problem.figure_edges ~f:(fun edge ->
-          match deformation_badness t edge hole_edge_length with
-          | None -> Some edge
-          | Some _ -> None)
-    in
-    Queue.enqueue res ((hole_from_p, hole_to_p), matching_edges)
+    if Set.mem frozen_coords hole_from_p && Set.mem frozen_coords hole_to_p
+    then ()
+    else (
+      let hole_edge_length = Point.distance hole_from_p hole_to_p in
+      let matching_edges =
+        List.filter_map t.problem.figure_edges ~f:(fun edge ->
+            let from_, to_ = edge in
+            (* dont touch frozen edges *)
+            if Set.mem frozen from_ || Set.mem frozen to_
+            then None
+            else (
+              match deformation_badness t edge hole_edge_length with
+              | None -> Some edge
+              | Some _ -> None))
+      in
+      Queue.enqueue res ((hole_from_p, hole_to_p), matching_edges))
   done;
   let res = Queue.to_list res in
   (* sort edges with less ambiguous matches first *)

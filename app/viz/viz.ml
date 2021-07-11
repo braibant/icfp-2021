@@ -141,9 +141,12 @@ module State = struct
   ;;
 
   let fit_idx = ref 0
+  let reset_fit () = fit_idx := 0
 
   let fit_unique_edge t =
-    match Pose.find_pose_edge_that_matches_hole_edge t.pose with
+    match
+      Pose.find_pose_edge_that_matches_hole_edge t.pose ~frozen:t.manually_frozen_vertices
+    with
     | [] -> t
     | hole_edge_matches ->
       (* This is a very ad-hoc way make fit - undo - fit cycle though
@@ -615,6 +618,7 @@ let rec interact
       | '|' -> vbar_pressed := true
       | '>' -> rotate_pressed := true
       | '=' -> fit_pressed := true
+      | '/' -> State.reset_fit ()
       | 'R' -> reset_pressed := true
       | '*' -> random_pressed := true
       | '+' -> scale_up_pressed := true
