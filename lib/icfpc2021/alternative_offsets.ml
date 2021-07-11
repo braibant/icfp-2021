@@ -7,7 +7,7 @@ let empty = Int.Map.empty
 let compute_offsets epsilon ~a ~b =
   let offsets = ref [] in
   let tolerance = Bignum.(epsilon / million) in
-  let orig_len = Point.distance a b in
+  let orig_len = Point.sq_distance a b in
   let min_len = Bignum.(orig_len * (one - tolerance)) in
   let max_len = Bignum.(orig_len * (one + tolerance)) in
   let origin = Point.create ~x:Bignum.zero ~y:Bignum.zero in
@@ -27,7 +27,7 @@ let compute_offsets epsilon ~a ~b =
        be the one where we reach max_len *)
     for y = y_from_len min_len to y_from_len max_len do
       let p = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y) in
-      let dist = Point.distance origin p in
+      let dist = Point.sq_distance origin p in
       if Bignum.( <= ) min_len dist && Bignum.( <= ) dist max_len
       then
         let open Bignum in

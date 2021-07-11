@@ -19,6 +19,11 @@ let json_as_int_pair_list json ~what =
          | _ -> failwithf "Parsing %s: expected list of pairs" what ())
 ;;
 
+let neighbours t : int list Int.Map.t =
+  List.fold t.figure_edges ~init:Int.Map.empty ~f:(fun acc (a, b) ->
+      acc |> Map.add_multi ~key:a ~data:b |> Map.add_multi ~key:b ~data:a)
+;;
+
 let load_exn ~filename =
   let module J = Tiny_json.Json in
   let json = J.parse_ch (In_channel.create filename) in

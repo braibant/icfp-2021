@@ -18,6 +18,14 @@ let segment t (a, b) =
   Segment.create pa pb
 ;;
 
+(* CR tbraibant: Maybe, actually normalize orig_lengths to have edges in normal form
+   (with vertex 1 < vertex 2) *)
+let original_length t (a, b) =
+  if Map.mem t.orig_lengths (a, b)
+  then Map.find_exn t.orig_lengths (a, b)
+  else Map.find_exn t.orig_lengths (b, a)
+;;
+
 let create problem =
   { problem
   ; vertices =
@@ -26,7 +34,7 @@ let create problem =
       List.map problem.figure_edges ~f:(fun (from_, to_) ->
           let from_p = List.nth_exn problem.figure_vertices from_ in
           let to_p = List.nth_exn problem.figure_vertices to_ in
-          (from_, to_), Point.distance from_p to_p)
+          (from_, to_), Point.sq_distance from_p to_p)
       |> Int_int.Map.of_alist_exn
   ; hole_polygon = Polygon.of_vertices problem.hole
   ; bonuses = []
@@ -36,6 +44,8 @@ let create problem =
 let set_vertices t vertices =
   { t with vertices = List.mapi vertices ~f:(fun i p -> i, p) |> Int.Map.of_alist_exn }
 ;;
+
+let set_vertices' t vertices = { t with vertices }
 
 let load_exn ~problem ~filename =
   let module J = Tiny_json.Json in
@@ -101,7 +111,7 @@ let deformation_badness t edge curr_length =
 ;;
 
 let min_max_length_sq_for_edge t edge =
-  let orig_length = Map.find_exn t.orig_lengths edge in
+  let orig_length = original_length t edge in
   let tolerance = Bignum.(t.problem.epsilon / million) in
   Bignum.(orig_length * (one - tolerance), orig_length * (one + tolerance))
 ;;
@@ -114,7 +124,7 @@ let invalid_edges t =
   List.filter_map t.problem.figure_edges ~f:(fun edge ->
       let from_, to_ = edge in
       let new_length =
-        Point.distance (Map.find_exn t.vertices from_) (Map.find_exn t.vertices to_)
+        Point.sq_distance (Map.find_exn t.vertices from_) (Map.find_exn t.vertices to_)
       in
       Option.map (deformation_badness t edge new_length) ~f:(fun badness -> edge, badness))
 ;;
@@ -162,7 +172,7 @@ let dislikes_per_hole_vertex t =
           if closest_dist = 0
           then 0
           else (
-            let dist = Point.distance hole_p p |> Bignum.to_int_exn in
+            let dist = Point.sq_distance hole_p p |> Bignum.to_int_exn in
             Int.min dist closest_dist)))
 ;;
 
@@ -180,7 +190,7 @@ let find_pose_edge_that_matches_hole_edge t ~frozen =
     if Set.mem frozen_coords hole_from_p && Set.mem frozen_coords hole_to_p
     then ()
     else (
-      let hole_edge_length = Point.distance hole_from_p hole_to_p in
+      let hole_edge_length = Point.sq_distance hole_from_p hole_to_p in
       let matching_edges =
         List.filter_map t.problem.figure_edges ~f:(fun edge ->
             let from_, to_ = edge in
@@ -226,10 +236,157 @@ let sort_by_min_distance_to_hole_vertices t pts =
       (* find min distance to some hole vertex *)
       let d =
         Array.fold ~init:Int.max_value hole_vertices ~f:(fun best hole_pt ->
-            let distance = Point.distance pt hole_pt |> Bignum.to_int_exn in
+            let distance = Point.sq_distance pt hole_pt |> Bignum.to_int_exn in
             Int.min distance best)
       in
       d, pt)
   |> List.sort ~compare:(fun (d1, _) (d2, _) -> Int.compare d1 d2)
   |> List.map ~f:snd
 ;;
+
+module Springs = struct
+  let edge_model pa pb lower_bound upper_bound : Point.t * Bignum.t =
+    let sq_distance = Point.sq_distance pa pb in
+    if Point.(pa = pb)
+    then Point.zero, Bignum.zero
+    else if Bignum.(sq_distance < lower_bound)
+    then Point.(unit_length (pa - pb)), Bignum.(abs (sq_distance - lower_bound))
+    else if Bignum.(upper_bound < sq_distance)
+    then Point.(unit_length (pb - pa)), Bignum.(abs (sq_distance - upper_bound))
+    else Point.zero, Bignum.zero
+  ;;
+
+  (* Compute the force exerced on vertex [a] by [b]. If the length of the edge
+     is lower than our lower bound, [a] is "pushed away by b". If the length of
+     the edge is longer than our upper bound, [a] is "attracted" toward other
+     vertex. *)
+  let force_one t a ~neighbour:b =
+    let pa = vertex t a in
+    let pb = vertex t b in
+    let lower_bound, upper_bound = min_max_length_sq_for_edge t (a, b) in
+    let v, k = edge_model pa pb lower_bound upper_bound in
+    Point.scale v k
+  ;;
+
+  let force_neighbours (t : t) a neighbours =
+    List.fold neighbours ~init:Point.zero ~f:(fun acc neighbour ->
+        let f = force_one t a ~neighbour in
+        Point.(acc + f))
+  ;;
+
+  (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
+     but doing this naively means that the figure could get clumped in a corner.
+     Maybe, what we want to do is pick the closest hole vertex that we have not
+     yet picked, and see if this improves things a bit. *)
+
+  let forces t : Point.t Int.Map.t =
+    let neighbours = Problem.neighbours t.problem in
+    Map.mapi neighbours ~f:(fun ~key:a ~data:neighbours ->
+        force_neighbours t a neighbours)
+  ;;
+
+  let energy (forces : Point.t Int.Map.t) =
+    Map.fold forces ~init:Bignum.zero ~f:(fun ~key:_ ~data acc ->
+        Bignum.(acc + Point.sq_length data))
+  ;;
+
+  exception Found of int
+
+  let pick_one (forces : Point.t Int.Map.t) energy : int option =
+    let k = Bignum.(of_float_decimal (Random.float 1.0) * energy) in
+    try
+      let (_ : Bignum.t) =
+        Int.Map.fold forces ~init:Bignum.zero ~f:(fun ~key ~data acc ->
+            let l = Point.sq_length data in
+            let acc = Bignum.(acc + l) in
+            if Bignum.(k < acc)
+            then (
+              Printf.eprintf "Vertex %i, force %f\n%!" key (Bignum.to_float l);
+              raise (Found key))
+            else acc)
+      in
+      None
+    with
+    | Found k -> Some k
+  ;;
+
+  (* Normalize the given vector to one of U, L, D, R. We could be more precise here, and consider 8 neighbours. *)
+  let normalize_dir (t : Point.t) : Point.t =
+    let open Bignum in
+    if t.y >= abs t.x (* U *)
+    then { x = zero; y = one }
+    else if t.y <= zero - abs t.x (* D *)
+    then { x = zero; y = zero - one }
+    else if zero <= t.x
+    then { x = one; y = zero }
+    else { x = zero - one; y = zero }
+  ;;
+
+  let relax_one t =
+    let forces = forces t in
+    let energy = energy forces in
+    match pick_one forces energy with
+    | None ->
+      (* The system is at rest *)
+      Printf.eprintf "System at rest (energy %.2f)\n%!" (Bignum.to_float energy);
+      t.vertices
+    | Some vertex ->
+      Printf.eprintf "Moving %i (energy %.2f)\n%!" vertex (Bignum.to_float energy);
+      let dir = Map.find_exn forces vertex |> normalize_dir in
+      let point = Point.(dir + Int.Map.find_exn t.vertices vertex) in
+      let vertices = Int.Map.set t.vertices ~key:vertex ~data:point in
+      vertices
+  ;;
+
+  module Testing = struct
+    let point x y = Point.create ~x:(Bignum.of_int x) ~y:(Bignum.of_int y)
+    let ( == ) a b = Bignum.(Point.sq_distance a b = zero)
+
+    let%test _ =
+      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 1) (Bignum.of_int 4) in
+      (* Printf.printf !"%{sexp: Point.t}" p; *)
+      p == Point.zero
+    ;;
+
+    let%test _ =
+      (* Squared length is 4, edge is too long, 0 0 is nudged toward 0 2  *)
+      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 1) (Bignum.of_int 3) in
+      (* Printf.printf !"%{sexp: Point.t}" p; *)
+      p == point 0 1
+    ;;
+
+    let%test _ =
+      (* Squared length is 4, edge is short long, 0 0 is nudged away from 0 2  *)
+      let p, _ = edge_model (point 0 0) (point 0 2) (Bignum.of_int 5) (Bignum.of_int 9) in
+      (* Printf.printf !"%{sexp: Point.t}" p; *)
+      p == point 0 (-1)
+    ;;
+
+    module At_rest = struct
+      let problem =
+        { Problem.hole = [ point 0 0; point 0 2; point 2 2; point 2 0 ]
+        ; figure_edges = [ 0, 1; 1, 2; 2, 3; 3, 0 ]
+        ; figure_vertices = [ point 0 0; point 0 2; point 2 2; point 2 0 ]
+        ; epsilon = Bignum.of_int 1
+        ; bonuses = []
+        }
+      ;;
+
+      let pose = create problem
+
+      let%test _ = force_one pose 0 ~neighbour:1 == Point.zero
+
+      let%test _ =
+        List.equal
+          (fun (k1, d1) (k2, d2) -> k1 = k2 && d1 == d2)
+          (forces pose |> Int.Map.to_alist)
+          [ 0, Point.zero; 1, Point.zero; 2, Point.zero; 3, Point.zero ]
+      ;;
+
+      let%test _ =
+        let forces = forces pose in
+        Bignum.(energy forces = zero)
+      ;;
+    end
+  end
+end

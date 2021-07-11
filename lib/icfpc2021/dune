@@ -6,4 +6,4 @@
   tiny_json
  )
   (inline_tests)
- (preprocess (pps ppx_jane)))
+ (preprocess (pps ppx_expect ppx_jane)))

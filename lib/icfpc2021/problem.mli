@@ -15,3 +15,4 @@ val to_string_hum : t -> string
 
 (* computes 1000 * log2 component of the score equation *)
 val score : t -> float
+val neighbours : t -> int list Int.Map.t
