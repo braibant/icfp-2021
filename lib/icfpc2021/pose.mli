@@ -7,7 +7,7 @@ val problem : t -> Problem.t
 val vertices : t -> Point.t Int.Map.t
 val set_vertices : t -> Point.t list -> t
 val set_vertices' : t -> Point.t Int.Map.t -> t
-
+val hole_polygon : t -> Polygon.t
 (* io *)
 
 val load_exn : problem:Problem.t -> filename:string -> t * Int.Set.t
@@ -43,9 +43,3 @@ val move : t -> int -> to_:Point.t -> t
 val shift : t -> frozen:Int.Set.t -> Edge.t -> t
 val reflect_vertical : t -> t
 val transpose : t -> t
-
-module Springs : sig
-  val edges : t -> frozen:Int.Set.t -> Forces.t
-  val holes : t -> frozen:Int.Set.t -> Forces.t
-  val relax_one : t -> Forces.t -> Point.t Int.Map.t
-end
