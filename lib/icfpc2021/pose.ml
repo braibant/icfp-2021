@@ -313,9 +313,9 @@ module Springs = struct
             let l = Point.sq_length data in
             let acc = Bignum.(acc + l) in
             if Bignum.(k < acc)
-            then (
-              Printf.eprintf "Vertex %i, force %f\n%!" key (Bignum.to_float l);
-              raise (Found key))
+            then
+              (* Printf.eprintf "Vertex %i, force %f\n%!" key (Bignum.to_float l); *)
+              raise (Found key)
             else acc)
       in
       None
