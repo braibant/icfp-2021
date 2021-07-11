@@ -254,6 +254,13 @@ module State = struct
     }
   ;;
 
+  let unfreeze_all t =
+    { t with
+      manually_frozen_vertices = Int.Set.empty
+    ; history = Change_frozen t.manually_frozen_vertices :: t.history
+    }
+  ;;
+
   let pan t (dx, dy) =
     let x, y = t.view_offset in
     { t with view_offset = x + dx, y + dy }
@@ -628,6 +635,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press s to save");
   draw_bottom_text (sprintf !"Press f to freeze highlighted vertex");
   draw_bottom_text (sprintf !"Press F to freeze ALL vertices");
+  draw_bottom_text (sprintf !"Press U to unfreeze ALL vertices");
   draw_bottom_text (sprintf !"Press AWSD to shift");
   draw_bottom_text (sprintf !"Press o to show alternative offsets");
   draw_bottom_text (sprintf !"Press O to hide alternative offsets");
@@ -676,6 +684,7 @@ let rec interact
   let reset_pressed = ref false in
   let random_pressed = ref false in
   let freeze_all_pressed = ref false in
+  let unfreeze_all_pressed = ref false in
   let scale_up_pressed = ref false in
   let scale_down_pressed = ref false in
   let normal_scale_pressed = ref false in
@@ -697,6 +706,7 @@ let rec interact
       | 's' -> s_pressed := true
       | 'f' -> f_pressed := true
       | 'F' -> freeze_all_pressed := true
+      | 'U' -> unfreeze_all_pressed := true
       | 'A' -> shift := -1, 0
       | 'S' -> shift := 0, 1
       | 'D' -> shift := 1, 0
@@ -745,6 +755,7 @@ let rec interact
   let state = if !fit_pressed then State.fit_unique_edge state else state in
   let state = if !random_pressed then State.randomize state else state in
   let state = if !freeze_all_pressed then State.freeze_all state else state in
+  let state = if !unfreeze_all_pressed then State.unfreeze_all state else state in
   let state =
     let state = ref state in
     while !spring_physics > 0 do
