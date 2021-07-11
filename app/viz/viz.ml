@@ -76,6 +76,7 @@ end
 module State = struct
   type t =
     { selected_vertex : int option
+    ; drag_physics : bool
     ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
     ; history : Operation.t list
@@ -85,6 +86,7 @@ module State = struct
 
   let create ~pose ~manually_frozen_vertices =
     { selected_vertex = None
+    ; drag_physics = false
     ; pose
     ; manually_frozen_vertices
     ; history = []
@@ -267,13 +269,26 @@ module State = struct
   ;;
 
   let spring_physics t =
-    let forces = Pose.Springs.edges t.pose ~frozen:t.manually_frozen_vertices in
-    let vertices = Pose.Springs.relax_one t.pose forces in
+    let forces = Physics.edges t.pose ~frozen:t.manually_frozen_vertices in
+    let vertices = Physics.relax_one t.pose forces in
     { t with
       pose = Pose.set_vertices' t.pose vertices
     ; history = Move_points t.pose :: t.history
     }
   ;;
+
+  let drag_physics t ~vertex ~distance =
+    let forces =
+      Physics.drag t.pose ~frozen:t.manually_frozen_vertices ~vertex ~distance
+    in
+    let vertices = Physics.relax_one t.pose forces in
+    { t with
+      pose = Pose.set_vertices' t.pose vertices
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
+
+  let toggle_drag_physics t = { t with drag_physics = not t.drag_physics }
 end
 
 open State
@@ -475,6 +490,7 @@ let draw_problem
        (Option.value_map state.selected_vertex ~default:~-1 ~f:(fun x ->
             Map.find_exn (Pose.neighbours state.pose) x |> List.length)));
   draw_right_text (sprintf !"Dislikes: %d" (Pose.dislikes state.pose));
+  draw_right_text (sprintf !"Drag_physics: %b" state.drag_physics);
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
   G.set_color (G.rgb 200 200 200);
@@ -701,6 +717,7 @@ let rec interact
   let start_solver = ref false in
   let stop_solver = ref false in
   let spring_physics = ref 0 in
+  let toggle_drag_physics = ref false in
   let shift = ref (0, 0) in
   let tab_pressed = ref false in
   let () =
@@ -738,6 +755,7 @@ let rec interact
       | 'G' -> stop_solver := true
       | 'p' -> spring_physics := 1
       | 'P' -> spring_physics := 100
+      | 'd' -> toggle_drag_physics := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -762,6 +780,7 @@ let rec interact
   let state = if !random_pressed then State.randomize state else state in
   let state = if !freeze_all_pressed then State.freeze_all state else state in
   let state = if !unfreeze_all_pressed then State.unfreeze_all state else state in
+  let state = if !toggle_drag_physics then State.toggle_drag_physics state else state in
   let state =
     let state = ref state in
     while !spring_physics > 0 do
@@ -769,6 +788,17 @@ let rec interact
       spring_physics := !spring_physics - 1
     done;
     !state
+  in
+  let state =
+    if state.drag_physics && Option.is_some state.selected_vertex
+    then (
+      let vertex = Option.value_exn state.selected_vertex in
+      let state = ref state in
+      for _i = 0 to 100 do
+        state := State.drag_physics !state ~vertex ~distance:5
+      done;
+      !state)
+    else state
   in
   let state =
     if !scale_up_pressed
