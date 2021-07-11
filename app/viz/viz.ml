@@ -794,7 +794,10 @@ let rec interact
     else solver, solver_kind_idx
   in
   let solver, state, stats =
-    if !start_solver && Option.is_none solver
+    if !start_solver
+       && Option.is_none solver
+       && Set.length state.manually_frozen_vertices
+          < Map.length (Pose.vertices state.pose)
     then (
       let solver =
         Solver.create
