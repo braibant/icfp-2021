@@ -835,10 +835,10 @@ let rec interact
     then { state with scale = Bignum.one; view_offset = 0, 0 }
     else state
   in
-  let state = if !pan_left then State.pan state (-10, 0) else state in
-  let state = if !pan_right then State.pan state (10, 0) else state in
-  let state = if !pan_down then State.pan state (0, -10) else state in
-  let state = if !pan_up then State.pan state (0, 10) else state in
+  let state = if !pan_left then State.pan state (-100, 0) else state in
+  let state = if !pan_right then State.pan state (100, 0) else state in
+  let state = if !pan_down then State.pan state (0, -100) else state in
+  let state = if !pan_up then State.pan state (0, 100) else state in
   let state =
     draw_problem
       ~wall_x:10
