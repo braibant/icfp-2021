@@ -693,6 +693,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press * to randomize unfrozen vertices");
   draw_bottom_text (sprintf !"Press +-0,JKLI to zoom/pan");
   draw_bottom_text (sprintf !"Press p/P to enable/disable spring physics");
+  draw_bottom_text (sprintf !"Press d to enable/disable spring physics dragging");
   draw_bottom_text (sprintf !"Press TAB to cycle solvers");
   state
 ;;
