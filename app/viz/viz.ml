@@ -311,7 +311,7 @@ let draw_right_text ~wall_x ~wall_y ~wall_width ~wall_height ~right_text_count s
 
 let draw_bottom_text ~x ~wall_y ~bottom_text_count str =
   G.set_color G.white;
-  G.moveto x (wall_y - 20 - (15 * (!bottom_text_count mod 4)));
+  G.moveto x (wall_y - 20 - (15 * (!bottom_text_count mod 7)));
   incr bottom_text_count;
   G.draw_string str
 ;;
@@ -617,7 +617,7 @@ let draw_problem
     let bottom_text_count = ref 0 in
     fun str ->
       draw_bottom_text
-        ~x:(10 + (290 * (!bottom_text_count / 4)))
+        ~x:(10 + (290 * (!bottom_text_count / 7)))
         ~wall_y
         ~bottom_text_count
         str
@@ -858,7 +858,7 @@ let display ~filename ~answer_filename ~no_alternative_offsets ~work_per_frame =
     | Some answer_filename -> answer_filename
     | None -> Filename.chop_extension filename ^ ".answer.json"
   in
-  G.open_graph " 1000x800";
+  G.open_graph " 1000x850";
   G.set_window_title "ICFPC 2021";
   G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
