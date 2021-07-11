@@ -104,7 +104,7 @@ let drag t ~frozen ~vertex ~distance : Forces.t =
         | None -> ()
         | Some f -> forces := Map.set !forces ~key:v ~data:(Vec.scale f !scale));
     visited := Set.union !visited s;
-    scale := 0.8 *. !scale
+    scale := 0.9 *. !scale
   done;
   !forces
 ;;

@@ -794,8 +794,8 @@ let rec interact
     then (
       let vertex = Option.value_exn state.selected_vertex in
       let state = ref state in
-      for _i = 0 to 10 do
-        state := State.drag_physics !state ~vertex ~distance:3
+      for _i = 0 to 100 do
+        state := State.drag_physics !state ~vertex ~distance:5
       done;
       !state)
     else state
