@@ -103,8 +103,12 @@ let invalid_edges t =
       Option.map (deformation_badness t edge new_length) ~f:(fun badness -> edge, badness))
 ;;
 
-let shift t (dx, dy) =
-  { t with vertices = Map.map t.vertices ~f:(fun p -> Point.shift p (dx, dy)) }
+let shift t ~frozen (dx, dy) =
+  { t with
+    vertices =
+      Map.mapi t.vertices ~f:(fun ~key:idx ~data:p ->
+          if Set.mem frozen idx then p else Point.shift p (dx, dy))
+  }
 ;;
 
 let segment_inside_hole t (segment : Segment.t) =

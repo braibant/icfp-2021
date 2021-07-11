@@ -51,7 +51,13 @@ module State = struct
   ;;
 
   let shift t (dx, dy) =
-    if dx = 0 && dy = 0 then t else { t with pose = Pose.shift t.pose (dx, dy) }
+    if dx = 0 && dy = 0
+    then t
+    else
+      { t with
+        pose = Pose.shift t.pose ~frozen:t.manually_frozen_vertices (dx, dy)
+      ; history = Move_points t.pose :: t.history
+      }
   ;;
 
   let undo t =

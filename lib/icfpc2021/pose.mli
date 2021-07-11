@@ -34,6 +34,6 @@ val inside_hole : t -> bool
 
 (* transform *)
 val move : t -> int -> to_:Point.t -> t
-val shift : t -> Edge.t -> t
+val shift : t -> frozen:Int.Set.t -> Edge.t -> t
 val reflect_vertical : t -> t
 val transpose : t -> t
