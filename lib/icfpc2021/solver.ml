@@ -73,7 +73,7 @@ let pick_next_vertex ~vertices ~vertices_left ~vertex_edges ~frozen_vertices =
     List.map vertices_with_max_conns ~f:(fun (vx, conns, _) ->
         let max_distance_to_frozen_nodes =
           let vx_pt = Map.find_exn vertices vx in
-          List.map conns ~f:(fun vy -> Point.distance vx_pt (Map.find_exn vertices vy))
+          List.map conns ~f:(fun vy -> Point.sq_distance vx_pt (Map.find_exn vertices vy))
           |> List.fold_left ~init:Bignum.zero ~f:Bignum.max
         in
         vx, conns, max_distance_to_frozen_nodes)

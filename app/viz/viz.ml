@@ -129,7 +129,7 @@ module State = struct
         ~init:(Point.create ~x:Bignum.zero ~y:Bignum.zero, Bignum.million)
         (Pose.problem t.pose).Problem.hole
         ~f:(fun (best, best_distance) v ->
-          let d = Point.distance v mouse_point in
+          let d = Point.sq_distance v mouse_point in
           if Bignum.(d < best_distance) then v, d else best, best_distance)
     in
     if Point.equal v start then None else Some v
@@ -171,7 +171,7 @@ module State = struct
         ~init:(-1, Bignum.million)
         (Pose.vertices state.pose)
         ~f:(fun ~key:idx ~data:v (best, best_distance) ->
-          let d = Point.distance v mouse_point in
+          let d = Point.sq_distance v mouse_point in
           if Bignum.(d < best_distance) then idx, d else best, best_distance)
     in
     if idx = -1 then None else Some idx
@@ -257,6 +257,14 @@ module State = struct
   let pan t (dx, dy) =
     let x, y = t.view_offset in
     { t with view_offset = x + dx, y + dy }
+  ;;
+
+  let spring_physics t =
+    let vertices = Pose.Springs.relax_one t.pose in
+    { t with
+      pose = Pose.set_vertices' t.pose vertices
+    ; history = Move_points t.pose :: t.history
+    }
   ;;
 end
 
@@ -628,6 +636,7 @@ let draw_problem
   draw_bottom_text (sprintf !"Press R to reset the problem");
   draw_bottom_text (sprintf !"Press * to randomize unfrozen vertices");
   draw_bottom_text (sprintf !"Press +-0,JKLI to zoom/pan");
+  draw_bottom_text (sprintf !"Press p/P to enable/disable spring physics");
   state
 ;;
 
@@ -672,6 +681,7 @@ let rec interact
   let pan_up = ref false in
   let start_solver = ref false in
   let stop_solver = ref false in
+  let spring_physics = ref 0 in
   let shift = ref (0, 0) in
   let () =
     while G.key_pressed () do
@@ -704,6 +714,8 @@ let rec interact
       | 'I' -> pan_up := true
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
+      | 'p' -> spring_physics := 1
+      | 'P' -> spring_physics := 10
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -724,6 +736,14 @@ let rec interact
   let state = if !fit_pressed then State.fit_unique_edge state else state in
   let state = if !random_pressed then State.randomize state else state in
   let state = if !freeze_all_pressed then State.freeze_all state else state in
+  let state =
+    let state = ref state in
+    while !spring_physics > 0 do
+      state := State.spring_physics !state;
+      spring_physics := !spring_physics - 1
+    done;
+    !state
+  in
   let state =
     if !scale_up_pressed
     then { state with scale = Bignum.(state.scale - tenth) }
