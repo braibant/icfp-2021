@@ -278,10 +278,15 @@ module State = struct
   ;;
 
   let drag_physics t ~vertex ~distance =
-    let forces =
-      Physics.drag t.pose ~frozen:t.manually_frozen_vertices ~vertex ~distance
-    in
-    let vertices = Physics.relax_one t.pose forces in
+    let pose = ref t.pose in
+    for _i = 0 to 9 do
+      let forces =
+        Physics.drag !pose ~frozen:t.manually_frozen_vertices ~vertex ~distance
+      in
+      let vertices = Physics.relax_one !pose forces in
+      pose := Pose.set_vertices' t.pose vertices
+    done;
+    let vertices = Pose.vertices !pose in
     { t with
       pose = Pose.set_vertices' t.pose vertices
     ; history = Move_points t.pose :: t.history
@@ -793,11 +798,7 @@ let rec interact
     if state.drag_physics && Option.is_some state.selected_vertex
     then (
       let vertex = Option.value_exn state.selected_vertex in
-      let state = ref state in
-      for _i = 0 to 100 do
-        state := State.drag_physics !state ~vertex ~distance:5
-      done;
-      !state)
+      State.drag_physics state ~vertex ~distance:5)
     else state
   in
   let state =
