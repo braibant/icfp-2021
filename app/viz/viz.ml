@@ -2,6 +2,59 @@ open! Core
 module G = Graphics
 open Icfpc2021
 
+module Stats = struct
+  let (period_length : Time_ns.Span.t) = Time_ns.Span.of_sec 1.0
+
+  type t =
+    { fps : float
+    ; fps_since_last_period : int
+    ; last_period_time : Time_ns.t
+    ; solver_work : int
+    ; solver_time : Time_ns.Span.t
+    }
+
+  let create () =
+    { fps = 0.0
+    ; fps_since_last_period = 0
+    ; last_period_time = Time_ns.now ()
+    ; solver_work = 0
+    ; solver_time = Time_ns.Span.zero
+    }
+  ;;
+
+  let frame_start t =
+    let now = Time_ns.now () in
+    let d_period = Time_ns.diff now t.last_period_time in
+    let fps_since_last_period, fps, last_period_time =
+      if Time_ns.Span.( > ) d_period period_length
+      then
+        ( 0
+        , Int.to_float (t.fps_since_last_period + 1)
+          /. (Time_ns.Span.to_sec d_period /. Time_ns.Span.to_sec period_length)
+        , now )
+      else t.fps_since_last_period + 1, t.fps, t.last_period_time
+    in
+    { t with fps; fps_since_last_period; last_period_time }
+  ;;
+
+  let reset_solver t = { t with solver_work = 0; solver_time = Time_ns.Span.zero }
+
+  let time_solver t ~work ~f =
+    let start = Time_ns.now () in
+    let res = f () in
+    let t =
+      { t with
+        solver_work = t.solver_work + work
+      ; solver_time =
+          Time_ns.Span.( + ) t.solver_time (Time_ns.diff (Time_ns.now ()) start)
+      }
+    in
+    res, t
+  ;;
+
+  let solver_speed t = Float.of_int t.solver_work /. Time_ns.Span.to_sec t.solver_time
+end
+
 let draw_bg () =
   G.clear_graph ();
   G.set_color G.black;
@@ -337,6 +390,7 @@ let draw_problem
     ~alternative_offsets
     ~show_alternative_offsets
     ~state
+    ~(stats : Stats.t)
   =
   let prob = Pose.problem state.pose in
   let wall_x, wall_y, wall_height, wall_width =
@@ -370,6 +424,8 @@ let draw_problem
     fun str ->
       draw_right_text ~wall_x ~wall_y ~wall_height ~wall_width ~right_text_count str
   in
+  draw_right_text (sprintf !"FPS: %.0f" stats.fps);
+  draw_right_text (sprintf !"Solver speed: %.0f" (Stats.solver_speed stats));
   draw_right_text (sprintf !"Scale: %{Bignum#hum}" scale);
   let mouse_x, mouse_y =
     mouse_to_figure_space ~mouse ~scale ~wall_x ~wall_y ~wall_width ~wall_height
@@ -580,6 +636,7 @@ let get_mouse_pos () =
 
 let rec interact
     ~state
+    ~stats
     ~answer_filename
     ~alternative_offsets
     ~show_alternative_offsets
@@ -587,6 +644,7 @@ let rec interact
     ~work_per_frame
     ~solver_kind
   =
+  let stats = Stats.frame_start stats in
   let shutting_down = ref false in
   let space_pressed = ref false in
   let s_pressed = ref false in
@@ -692,9 +750,10 @@ let rec interact
       ~alternative_offsets
       ~show_alternative_offsets:!show_alternative_offsets
       ~state
+      ~stats
   in
   let solver = if !stop_solver then None else solver in
-  let state, solver =
+  let solver, state, stats =
     if !start_solver && Option.is_none solver
     then (
       let solver =
@@ -704,42 +763,45 @@ let rec interact
           ~alternative_offsets
       in
       printf "Invoking solver...\n%!";
-      ( { state with history = Move_points state.pose :: state.history }
-      , Some
+      ( Some
           ( solver
           , match solver_kind with
             | `Dfs -> Solver.create_initial_dfs_stack solver
-            | `Bfs -> Solver.create_initial_bfs_stack solver ) ))
-    else state, solver
+            | `Bfs -> Solver.create_initial_bfs_stack solver )
+      , { state with history = Move_points state.pose :: state.history }
+      , Stats.reset_solver stats ))
+    else solver, state, stats
   in
   G.synchronize ();
-  let state, solver =
+  let state, solver, stats =
     match solver with
-    | None -> state, solver
+    | None -> state, solver, stats
     | Some (solver, stack) ->
-      let solver_res =
-        match solver_kind with
-        | `Dfs -> Solver.incremental_dfs_run solver ~work_to_do:work_per_frame ~stack
-        | `Bfs -> Solver.incremental_bfs_run solver ~work_to_do:work_per_frame ~stack
+      let solver_res, stats =
+        Stats.time_solver stats ~work:work_per_frame ~f:(fun () ->
+            match solver_kind with
+            | `Dfs -> Solver.incremental_dfs_run solver ~work_to_do:work_per_frame ~stack
+            | `Bfs -> Solver.incremental_bfs_run solver ~work_to_do:work_per_frame ~stack)
       in
       (match solver_res with
       | `Done solver ->
         printf "Solving done\n%!";
-        { state with pose = Solver.pose solver }, None
+        { state with pose = Solver.pose solver }, None, stats
       | `Todo (solver, stack) ->
-        { state with pose = Solver.pose solver }, Some (solver, stack)
+        { state with pose = Solver.pose solver }, Some (solver, stack), stats
       | `Failed _ ->
         (match stack with
         | [] | [ _ ] ->
           printf "ERROR: Solving failed\n%!";
-          state, None
-        | _ :: rest_stack -> state, Some (solver, rest_stack)))
+          state, None, stats
+        | _ :: rest_stack -> state, Some (solver, rest_stack), stats))
   in
   if not !shutting_down
   then (
     let (_ : float) = Unix.nanosleep 0.033 in
     interact
       ~state
+      ~stats
       ~answer_filename
       ~alternative_offsets
       ~show_alternative_offsets
@@ -775,9 +837,11 @@ let display
   G.set_window_title "ICFPC 2021";
   G.auto_synchronize false;
   printf !"%{Problem#hum}\n%!" prob;
+  let stats = Stats.create () in
   let () =
     interact
       ~state:(State.create ~pose)
+      ~stats
       ~answer_filename
       ~alternative_offsets
       ~show_alternative_offsets:(ref false)
