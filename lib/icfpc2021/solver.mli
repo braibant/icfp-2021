@@ -4,7 +4,6 @@ module Kind : sig
   type t =
     | Dfs
     | Bfs
-    | Chf (* Complete hole fitter *)
   [@@deriving sexp]
 end
 
