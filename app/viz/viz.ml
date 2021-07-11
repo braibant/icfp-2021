@@ -754,10 +754,10 @@ let rec interact
       | 'f' -> f_pressed := true
       | 'F' -> freeze_all_pressed := true
       | 'U' -> unfreeze_all_pressed := true
-      | 'A' -> shift := -1, 0
-      | 'S' -> shift := 0, 1
-      | 'D' -> shift := 1, 0
-      | 'W' -> shift := 0, -1
+      | 'A' -> shift := -10, 0
+      | 'S' -> shift := 0, 10
+      | 'D' -> shift := 10, 0
+      | 'W' -> shift := 0, -10
       | 'o' -> show_alternative_offsets := true
       | 'O' -> show_alternative_offsets := false
       | 'z' -> z_pressed := true
