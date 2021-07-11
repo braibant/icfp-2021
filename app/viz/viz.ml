@@ -784,16 +784,13 @@ let rec interact
     then (
       let solver =
         Solver.create
+          solver_kind
           ~initial_pose:state.pose
           ~manually_frozen_vertices:state.manually_frozen_vertices
           ~alternative_offsets
       in
       printf "Invoking solver...\n%!";
-      ( Some
-          ( solver
-          , match solver_kind with
-            | `Dfs -> Solver.create_initial_dfs_stack solver
-            | `Bfs -> Solver.create_initial_bfs_stack solver )
+      ( Some solver
       , { state with history = Move_points state.pose :: state.history }
       , Stats.reset_solver stats ))
     else solver, state, stats
@@ -802,25 +799,19 @@ let rec interact
   let state, solver, stats =
     match solver with
     | None -> state, solver, stats
-    | Some (solver, stack) ->
+    | Some solver ->
       let solver_res, stats =
         Stats.time_solver stats ~work:work_per_frame ~f:(fun () ->
-            match solver_kind with
-            | `Dfs -> Solver.incremental_dfs_run solver ~work_to_do:work_per_frame ~stack
-            | `Bfs -> Solver.incremental_bfs_run solver ~work_to_do:work_per_frame ~stack)
+            Solver.run solver ~work_to_do:work_per_frame)
       in
       (match solver_res with
       | `Done solver ->
         printf "Solving done\n%!";
         { state with pose = Solver.pose solver }, None, stats
-      | `Todo (solver, stack) ->
-        { state with pose = Solver.pose solver }, Some (solver, stack), stats
-      | `Failed _ ->
-        (match stack with
-        | [] | [ _ ] ->
-          printf "ERROR: Solving failed\n%!";
-          state, None, stats
-        | _ :: rest_stack -> state, Some (solver, rest_stack), stats))
+      | `Todo solver -> { state with pose = Solver.pose solver }, Some solver, stats
+      | `Failed ->
+        printf "ERROR: Solving failed\n%!";
+        state, None, stats)
   in
   if not !shutting_down
   then (
@@ -902,8 +893,8 @@ let commands =
              flag
                "-solver-kind"
                (optional_with_default
-                  `Dfs
-                  (Arg_type.of_alist_exn [ "dfs", `Dfs; "bfs", `Bfs ]))
+                  Solver.Kind.Dfs
+                  (Arg_type.of_alist_exn Solver.Kind.[ "dfs", Dfs; "bfs", Bfs ]))
                ~doc:"dfs|bfs Which solver to use"
            in
            fun () ->

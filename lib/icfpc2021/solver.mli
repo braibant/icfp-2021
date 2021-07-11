@@ -1,31 +1,20 @@
 open! Core
 
+module Kind : sig
+  type t =
+    | Dfs
+    | Bfs
+  [@@deriving sexp]
+end
+
 type t
 
 val create
-  :  initial_pose:Pose.t
+  :  Kind.t
+  -> initial_pose:Pose.t
   -> manually_frozen_vertices:Int.Set.t
   -> alternative_offsets:Alternative_offsets.t
   -> t
 
 val pose : t -> Pose.t
-
-module Stack_frame : sig
-  type t
-end
-
-val incremental_dfs_run
-  :  t
-  -> work_to_do:int
-  -> stack:Stack_frame.t list
-  -> [ `Done of t | `Todo of t * Stack_frame.t list | `Failed of int ]
-
-val create_initial_dfs_stack : t -> Stack_frame.t list
-
-val incremental_bfs_run
-  :  t
-  -> work_to_do:int
-  -> stack:Stack_frame.t list
-  -> [ `Done of t | `Todo of t * Stack_frame.t list | `Failed of int ]
-
-val create_initial_bfs_stack : t -> Stack_frame.t list
+val run : t -> work_to_do:int -> [ `Done of t | `Todo of t | `Failed ]
