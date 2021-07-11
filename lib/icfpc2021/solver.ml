@@ -349,6 +349,7 @@ module Incremental = struct
       Option.value_exn
         (Bfs_queue.dequeue_with_most_connections_to_frozen
            queue
+           ~vertices:(Pose.vertices t.pose)
            ~frozen_vertices:t.manually_frozen_vertices
            ~vertex_edges:t.vertex_edges)
     in
@@ -446,6 +447,7 @@ module Incremental = struct
               match
                 Bfs_queue.dequeue_with_most_connections_to_frozen
                   queue
+                  ~vertices:(Pose.vertices updated_t.pose)
                   ~frozen_vertices
                   ~vertex_edges:t.vertex_edges
               with
