@@ -720,7 +720,7 @@ let rec interact
       | 'g' -> start_solver := true
       | 'G' -> stop_solver := true
       | 'p' -> spring_physics := 1
-      | 'P' -> spring_physics := 10
+      | 'P' -> spring_physics := 100
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
