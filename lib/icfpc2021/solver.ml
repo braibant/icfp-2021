@@ -22,6 +22,8 @@ module Incremental = struct
   module Stack_frame = struct
     type nonrec t =
       { solver_t : t
+            (** In [solver_t] in this Stack_frame, the [vertex] is *not*
+         already positioned and frozen. *)
       ; vertex : int
       ; alternative_positions : Point.t list
       ; queue : Bfs_queue.t
@@ -189,33 +191,32 @@ module Incremental = struct
         Pose.edge_inside_hole pose (vertex, frozen_vertex))
   ;;
 
-  (* CR scvalex: I think we should just be using the stack here. *)
-  let incremental_dfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
+  let run_dfs ~work_to_do:work_to_do0 ~stack:stack0 =
     (* printf "\n\nSolver.incremental_run ~stack:%d\n%!" (List.length stack0); *)
-    let rec incremental_loop t ~work_to_do ~stack =
+    let rec incremental_loop ~work_to_do ~stack =
       (* printf "incremental_loop ~stack:%d\n%!" (List.length stack); *)
-      if Set.is_empty t.vertices_left
-      then `Done t
-      else if work_to_do <= 0
-      then `Todo (t, stack)
+      if work_to_do <= 0
+      then `Todo stack
       else (
         match (stack : Stack_frame.t list) with
         | [] -> failwith "Solver.incremental_run: empty stack"
         | { solver_t; vertex; alternative_positions; queue = _ } :: rest_stack ->
-          (* solver_t is always the same as t, at this point *)
-          (match
-             alternative_position_loop
-               solver_t
-               alternative_positions
-               ~work_to_do
-               ~vertex
-               ~stack_excluding_self:rest_stack
-           with
-          | `Done t -> `Done t
-          | `Todo (t, stack) -> `Todo (t, stack)
-          | `Failed work_to_do ->
-            (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
-            `Failed work_to_do))
+          if Set.is_empty solver_t.vertices_left
+          then `Done stack
+          else (
+            match
+              alternative_position_loop
+                solver_t
+                alternative_positions
+                ~work_to_do
+                ~vertex
+                ~stack_excluding_self:rest_stack
+            with
+            | `Done stack -> `Done stack
+            | `Todo stack -> `Todo stack
+            | `Failed work_to_do ->
+              (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
+              `Failed work_to_do))
     and alternative_position_loop
         (t : t)
         ~work_to_do
@@ -239,10 +240,9 @@ module Incremental = struct
       if work_to_do <= 0
       then
         `Todo
-          ( t
-          , Stack_frame.
-              { solver_t = t; vertex; alternative_positions; queue = Bfs_queue.empty }
-            :: stack_excluding_self )
+          (Stack_frame.
+             { solver_t = t; vertex; alternative_positions; queue = Bfs_queue.empty }
+           :: stack_excluding_self)
       else (
         match alternative_positions with
         | [] -> `Failed work_to_do
@@ -266,19 +266,24 @@ module Incremental = struct
                 }
             in
             if Set.is_empty vertices_left
-            then `Done updated_t
+            then
+              `Done
+                (Stack_frame.
+                   { solver_t = updated_t
+                   ; vertex = ~-1
+                   ; alternative_positions = []
+                   ; queue = Bfs_queue.empty
+                   }
+                 :: cur_frame :: stack_excluding_self)
             else (
               let updated_stack =
                 create_dfs_stack_frame updated_t :: cur_frame :: stack_excluding_self
               in
               match
-                incremental_loop
-                  updated_t
-                  ~work_to_do:(work_to_do - 1)
-                  ~stack:updated_stack
+                incremental_loop ~work_to_do:(work_to_do - 1) ~stack:updated_stack
               with
-              | `Done t -> `Done t
-              | `Todo (t, stack) -> `Todo (t, stack)
+              | `Done stack -> `Done stack
+              | `Todo stack -> `Todo stack
               | `Failed work_to_do ->
                 (* printf "trying alternatives after failure\n%!"; *)
                 alternative_position_loop
@@ -292,7 +297,7 @@ module Incremental = struct
             (* printf "trying alternatives edge overlap\n%!"; *)
             alternative_position_loop t rest_aps ~vertex ~work_to_do ~stack_excluding_self)
     in
-    incremental_loop t0 ~work_to_do:work_to_do0 ~stack:stack0
+    incremental_loop ~work_to_do:work_to_do0 ~stack:stack0
   ;;
 
   let create_bfs_stack_frame t vertex ~queue =
@@ -347,33 +352,33 @@ module Incremental = struct
     [ create_bfs_stack_frame t first_vertex ~queue ]
   ;;
 
-  let incremental_bfs_run t0 ~work_to_do:work_to_do0 ~stack:stack0 =
+  let run_bfs ~work_to_do:work_to_do0 ~stack:stack0 =
     (* printf "\n\nSolver.incremental_bfs_run ~stack:%d\n%!" (List.length stack0); *)
-    let rec incremental_loop t ~work_to_do ~stack =
+    let rec incremental_loop ~work_to_do ~stack =
       (* printf "incremental_loop ~stack:%d\n%!" (List.length stack); *)
-      if Set.is_empty t.vertices_left
-      then `Done t
-      else if work_to_do <= 0
-      then `Todo (t, stack)
+      if work_to_do <= 0
+      then `Todo stack
       else (
         match (stack : Stack_frame.t list) with
         | [] -> failwith "Solver.incremental_run: empty stack"
         | { solver_t; vertex; alternative_positions; queue } :: rest_stack ->
-          (* solver_t is always the same as t, at this point *)
-          (match
-             alternative_position_loop
-               solver_t
-               alternative_positions
-               ~work_to_do
-               ~vertex
-               ~stack_excluding_self:rest_stack
-               ~queue
-           with
-          | `Done t -> `Done t
-          | `Todo (t, stack) -> `Todo (t, stack)
-          | `Failed work_to_do ->
-            (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
-            `Failed work_to_do))
+          if Set.is_empty solver_t.vertices_left
+          then `Done stack
+          else (
+            match
+              alternative_position_loop
+                solver_t
+                alternative_positions
+                ~work_to_do
+                ~vertex
+                ~stack_excluding_self:rest_stack
+                ~queue
+            with
+            | `Done stack -> `Done stack
+            | `Todo stack -> `Todo stack
+            | `Failed work_to_do ->
+              (* printf "incremental_loop failed at depth %d\n%!" (1 + List.length rest_stack); *)
+              `Failed work_to_do))
     and alternative_position_loop
         (t : t)
         alternative_positions
@@ -400,9 +405,8 @@ module Incremental = struct
       if work_to_do <= 0
       then
         `Todo
-          ( t
-          , Stack_frame.{ solver_t = t; vertex; alternative_positions; queue }
-            :: stack_excluding_self )
+          (Stack_frame.{ solver_t = t; vertex; alternative_positions; queue }
+           :: stack_excluding_self)
       else (
         match alternative_positions with
         | [] -> `Failed work_to_do
@@ -422,7 +426,15 @@ module Incremental = struct
                 { solver_t = t; vertex; alternative_positions = rest_aps; queue }
             in
             if Set.is_empty vertices_left
-            then `Done updated_t
+            then
+              `Done
+                (Stack_frame.
+                   { solver_t = updated_t
+                   ; vertex = ~-1
+                   ; alternative_positions = []
+                   ; queue = Bfs_queue.empty
+                   }
+                 :: cur_frame :: stack_excluding_self)
             else (
               match
                 Bfs_queue.dequeue_with_most_connections_to_frozen
@@ -437,13 +449,10 @@ module Incremental = struct
                   :: cur_frame :: stack_excluding_self
                 in
                 (match
-                   incremental_loop
-                     updated_t
-                     ~work_to_do:(work_to_do - 1)
-                     ~stack:updated_stack
+                   incremental_loop ~work_to_do:(work_to_do - 1) ~stack:updated_stack
                  with
-                | `Done t -> `Done t
-                | `Todo (t, stack) -> `Todo (t, stack)
+                | `Done stack -> `Done stack
+                | `Todo stack -> `Todo stack
                 | `Failed work_to_do ->
                   (* printf "trying alternatives after failure\n%!"; *)
                   alternative_position_loop
@@ -465,11 +474,11 @@ module Incremental = struct
               ~stack_excluding_self
               ~queue)
     in
-    incremental_loop t0 ~stack:stack0 ~work_to_do:work_to_do0
+    incremental_loop ~stack:stack0 ~work_to_do:work_to_do0
   ;;
 end
 
-type t = Incremental of (Incremental.t * Incremental.Stack_frame.t list)
+type t = Incremental of Incremental.Stack_frame.t list
 
 let create (kind : Kind.t) ~initial_pose ~manually_frozen_vertices ~alternative_offsets =
   match kind with
@@ -478,33 +487,35 @@ let create (kind : Kind.t) ~initial_pose ~manually_frozen_vertices ~alternative_
       Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
     in
     let stack = Incremental.create_initial_dfs_stack solver in
-    Incremental (solver, stack)
+    Incremental stack
   | Bfs ->
     let solver =
       Incremental.create kind ~initial_pose ~manually_frozen_vertices ~alternative_offsets
     in
     let stack = Incremental.create_initial_bfs_stack solver in
-    Incremental (solver, stack)
+    Incremental stack
 ;;
 
 let run t ~work_to_do =
   match t with
-  | Incremental (solver, stack) ->
+  | Incremental [] -> failwith "Incremental solver stack empty"
+  | Incremental (frame :: _ as stack) ->
     let res =
-      match solver.kind with
-      | Dfs -> Incremental.incremental_dfs_run solver ~work_to_do ~stack
-      | Bfs -> Incremental.incremental_bfs_run solver ~work_to_do ~stack
+      match frame.solver_t.kind with
+      | Dfs -> Incremental.run_dfs ~work_to_do ~stack
+      | Bfs -> Incremental.run_bfs ~work_to_do ~stack
     in
     (match res with
-    | `Done solver -> `Done (Incremental (solver, []))
-    | `Todo (solver, stack) -> `Todo (Incremental (solver, stack))
+    | `Done stack -> `Done (Incremental stack)
+    | `Todo stack -> `Todo (Incremental stack)
     | `Failed _ ->
       (match stack with
       | [] | [ _ ] -> `Failed
-      | _ :: rest_stack -> `Todo (Incremental (solver, rest_stack))))
+      | _ :: rest_stack -> `Todo (Incremental rest_stack)))
 ;;
 
 let pose t =
   match t with
-  | Incremental (solver, _) -> solver.pose
+  | Incremental (frame :: _) -> frame.solver_t.pose
+  | Incremental [] -> failwith "Incremental solver stack empty"
 ;;

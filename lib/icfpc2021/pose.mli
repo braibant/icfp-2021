@@ -9,8 +9,9 @@ val set_vertices : t -> Point.t list -> t
 val set_vertices' : t -> Point.t Int.Map.t -> t
 
 (* io *)
-val load_exn : problem:Problem.t -> filename:string -> t
-val save_exn : t -> filename:string -> unit
+
+val load_exn : problem:Problem.t -> filename:string -> t * Int.Set.t
+val save_exn : t -> frozen_vertices:Int.Set.t -> filename:string -> unit
 
 (* Get segment from edge *)
 val segment : t -> Edge.t -> Segment.t
