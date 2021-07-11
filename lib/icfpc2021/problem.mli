@@ -5,6 +5,7 @@ type t =
   ; figure_edges : Edge.t list
   ; figure_vertices : Point.t list
   ; epsilon : Bignum.t
+  ; bonuses : Bonus.t list
   }
 [@@deriving sexp]
 
