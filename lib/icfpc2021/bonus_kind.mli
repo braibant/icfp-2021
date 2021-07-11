@@ -6,4 +6,5 @@ type t =
   | Wallhack
 [@@deriving compare, equal, sexp]
 
+val to_string : t -> string
 val of_string : string -> t

@@ -44,7 +44,7 @@ let load_exn ~filename =
       |> List.map ~f:(fun json ->
              Bonus.
                { problem = J.getf "problem" json |> J.as_int
-               ; bonus = J.getf "bonus" json |> J.as_string |> Bonus_kind.of_string
+               ; kind = J.getf "bonus" json |> J.as_string |> Bonus_kind.of_string
                ; position = J.getf "position" json |> Common.json_as_point ~what:"bonus"
                })
   in
