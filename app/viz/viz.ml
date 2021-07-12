@@ -537,6 +537,7 @@ let draw_problem
             Map.find_exn (Pose.neighbours state.pose) x |> List.length)));
   draw_right_text (sprintf !"Dislikes: %d" (Pose.dislikes state.pose));
   draw_right_text (sprintf !"Drag_physics: %b" state.drag_physics);
+  draw_right_text (sprintf !"Repulsion_physics: %b" state.repulsion_physics);
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
   G.set_color (G.rgb 200 200 200);
@@ -831,6 +832,9 @@ let rec interact
   let state = if !unfreeze_all_pressed then State.unfreeze_all state else state in
   let state = if !toggle_drag_physics then State.toggle_drag_physics state else state in
   let state =
+    if !toggle_repulsion_physics then State.toggle_repulsion_physics state else state
+  in
+  let state =
     let state = ref state in
     while !spring_physics > 0 do
       state := State.spring_physics !state;
@@ -843,6 +847,13 @@ let rec interact
     then (
       let vertex = Option.value_exn state.selected_vertex in
       State.drag_physics state ~vertex ~distance:5 ~dampening_factor:0.95)
+    else state
+  in
+  let state =
+    if state.repulsion_physics && Option.is_some state.selected_vertex
+    then (
+      let vertex = Option.value_exn state.selected_vertex in
+      State.repulsion_physics state ~vertex)
     else state
   in
   let state =

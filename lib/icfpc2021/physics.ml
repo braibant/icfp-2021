@@ -33,12 +33,13 @@ let pose_vertex_to_hole_vertex_model (pv : Point.t) (hv : Point.t) (dislikes : F
 ;;
 
 (* The force exerced on a by b *)
-let repulsion_model pa pb : Vec.t =
+let repulsion_model pa ca pb cb : Vec.t =
   if Vec.(pa = pb)
   then Vec.zero
   else (
     let d2 = Vec.sq_distance pa pb in
-    Vec.(scale (unit_length (pa - pb)) (1. /. d2)))
+    let k = ca *. cb /. d2 in
+    Vec.(scale (unit_length (pa - pb)) k))
 ;;
 
 (* Compute the force exerced on vertex [a] by [b]. If the length of the edge
@@ -120,6 +121,26 @@ let all_relatives t ~vertex =
   Array.of_list_rev !result
 ;;
 
+(* Compute the set of all relatives *)
+let distances_from t ~vertex : int Int.Map.t =
+  let neighbours = Pose.neighbours t in
+  let result : int Int.Map.t ref = ref Int.Map.empty in
+  let visited = ref Int.Set.empty in
+  let acc = ref (Int.Set.singleton vertex) in
+  let d = ref 0 in
+  while not (Int.Set.is_empty !acc) do
+    let next =
+      Set.fold !acc ~init:Int.Set.empty ~f:(fun acc n ->
+          Int.Set.union (Int.Set.of_list (Map.find_exn neighbours n)) acc)
+    in
+    acc := Int.Set.diff next !visited;
+    Int.Set.iter next ~f:(fun i -> result := Int.Map.set !result ~key:i ~data:!d);
+    visited := Int.Set.union !visited next;
+    d := !d + 1
+  done;
+  !result
+;;
+
 let drag t ~frozen ~vertex ~distance ~dampening_factor : Forces.t =
   let relatives = relatives t ~vertex ~distance in
   let forces = ref (edges t ~frozen) in
@@ -135,7 +156,29 @@ let drag t ~frozen ~vertex ~distance ~dampening_factor : Forces.t =
   !forces
 ;;
 
+let electric_force pa ca v =
+  let f = ref Vec.zero in
+  Array.iter v ~f:(fun (_, pb, cb) -> f := Vec.(!f + repulsion_model pa ca pb cb));
+  !f
+;;
+
 let electrify t ~frozen ~vertex : Forces.t =
+  let (m : (int * Vec.t * float) array) =
+    distances_from t ~vertex
+    |> Int.Map.to_alist
+    |> Array.of_list_map ~f:(fun (v, d) -> v, vec t v, 1.05 ** Float.of_int d)
+  in
+  let f = ref Forces.empty in
+  for i = 0 to Array.length m - 1 do
+    let v, p, d = m.(i) in
+    if Int.Set.mem frozen v
+    then ()
+    else f := Int.Map.set !f ~key:v ~data:(electric_force p d m)
+  done;
+  !f
+;;
+
+let _electrify t ~frozen ~vertex : Forces.t =
   let all_relatives = all_relatives t ~vertex in
   let further_away = all_relatives.(Array.length all_relatives - 1) in
   let charged = Int.Set.diff (Int.Set.add further_away vertex) frozen in
@@ -144,10 +187,14 @@ let electrify t ~frozen ~vertex : Forces.t =
   List.fold charged ~init:Forces.empty ~f:(fun acc a ->
       let f =
         List.fold charged ~init:Vec.zero ~f:(fun acc b ->
-            let f = repulsion_model (vec t a) (vec t b) in
+            let f = repulsion_model (vec t a) 1.0 (vec t b) 1.0 in
             Vec.(acc + f))
       in
       Int.Map.set acc ~key:a ~data:f)
+;;
+
+let electrify t ~frozen ~vertex : Forces.t =
+  Forces.mix (electrify t ~frozen ~vertex) (edges t ~frozen)
 ;;
 
 (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
