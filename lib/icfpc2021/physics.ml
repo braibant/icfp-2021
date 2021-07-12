@@ -175,7 +175,7 @@ let electrify t ~frozen ~vertex : Forces.t =
     then ()
     else f := Int.Map.set !f ~key:v ~data:(electric_force p d m)
   done;
-  Printf.eprintf "%f\n%!" (Forces.energy !f);
+  (* Printf.eprintf "%f\n%!" (Forces.energy !f); *)
   !f
 ;;
 
