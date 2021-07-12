@@ -1,6 +1,14 @@
 Solution to ICFPC 2021
 ======================
 
+![Screenshot](icfp2021.png "Screenshot")
+
+## Intro
+
+The main tool is `viz.exe` ([`app/viz/viz.ml`](app/viz/viz.ml)).
+Fundamentally, it's a UI to move nodes around and save poses, but it
+has lots of features to help with the mechanical work.
+
 ## Build & run
 
 ```
