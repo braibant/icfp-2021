@@ -77,6 +77,7 @@ module State = struct
   type t =
     { selected_vertex : int option
     ; drag_physics : bool
+    ; repulsion_physics : bool
     ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
     ; history : Operation.t list
@@ -87,6 +88,7 @@ module State = struct
   let create ~pose ~manually_frozen_vertices =
     { selected_vertex = None
     ; drag_physics = false
+    ; repulsion_physics = false
     ; pose
     ; manually_frozen_vertices
     ; history = []
@@ -277,11 +279,16 @@ module State = struct
     }
   ;;
 
-  let drag_physics t ~vertex ~distance =
+  let drag_physics t ~vertex ~distance ~dampening_factor =
     let pose = ref t.pose in
-    for _i = 0 to 9 do
+    for _i = 0 to 19 do
       let forces =
-        Physics.drag !pose ~frozen:t.manually_frozen_vertices ~vertex ~distance
+        Physics.drag
+          !pose
+          ~frozen:t.manually_frozen_vertices
+          ~vertex
+          ~distance
+          ~dampening_factor
       in
       let vertices = Physics.relax_one !pose forces in
       pose := Pose.set_vertices' t.pose vertices
@@ -294,6 +301,22 @@ module State = struct
   ;;
 
   let toggle_drag_physics t = { t with drag_physics = not t.drag_physics }
+
+  let repulsion_physics t ~vertex =
+    let pose = ref t.pose in
+    for _i = 0 to 19 do
+      let forces = Physics.electrify !pose ~vertex ~frozen:t.manually_frozen_vertices in
+      let vertices = Physics.relax_one !pose forces in
+      pose := Pose.set_vertices' t.pose vertices
+    done;
+    let vertices = Pose.vertices !pose in
+    { t with
+      pose = Pose.set_vertices' t.pose vertices
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
+
+  let toggle_repulsion_physics t = { t with repulsion_physics = not t.repulsion_physics }
 end
 
 open State
@@ -514,6 +537,7 @@ let draw_problem
             Map.find_exn (Pose.neighbours state.pose) x |> List.length)));
   draw_right_text (sprintf !"Dislikes: %d" (Pose.dislikes state.pose));
   draw_right_text (sprintf !"Drag_physics: %b" state.drag_physics);
+  draw_right_text (sprintf !"Repulsion_physics: %b" state.repulsion_physics);
   (* Draw the actual hole (scaled to the size of the wall). *)
   G.set_line_width (Int.max 1 (px / 2));
   G.set_color (G.rgb 200 200 200);
@@ -742,6 +766,7 @@ let rec interact
   let stop_solver = ref false in
   let spring_physics = ref 0 in
   let toggle_drag_physics = ref false in
+  let toggle_repulsion_physics = ref false in
   let shift = ref (0, 0) in
   let tab_pressed = ref false in
   let () =
@@ -780,6 +805,7 @@ let rec interact
       | 'p' -> spring_physics := 1
       | 'P' -> spring_physics := 100
       | 'd' -> toggle_drag_physics := true
+      | 'e' -> toggle_repulsion_physics := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -806,6 +832,9 @@ let rec interact
   let state = if !unfreeze_all_pressed then State.unfreeze_all state else state in
   let state = if !toggle_drag_physics then State.toggle_drag_physics state else state in
   let state =
+    if !toggle_repulsion_physics then State.toggle_repulsion_physics state else state
+  in
+  let state =
     let state = ref state in
     while !spring_physics > 0 do
       state := State.spring_physics !state;
@@ -817,7 +846,14 @@ let rec interact
     if state.drag_physics && Option.is_some state.selected_vertex
     then (
       let vertex = Option.value_exn state.selected_vertex in
-      State.drag_physics state ~vertex ~distance:5)
+      State.drag_physics state ~vertex ~distance:5 ~dampening_factor:0.95)
+    else state
+  in
+  let state =
+    if state.repulsion_physics && Option.is_some state.selected_vertex
+    then (
+      let vertex = Option.value_exn state.selected_vertex in
+      State.repulsion_physics state ~vertex)
     else state
   in
   let state =
