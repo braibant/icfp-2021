@@ -8,12 +8,7 @@ let score_estimate filename dislikes =
     Float.(round_up (score * sqrt ((dislikes + 1.) / (our_dislikes + 1.))))
   in
   let best = score dislikes in
-  let realistic = score Float.(2.0 * dislikes) in
-  printf
-    "Best score for this problem is %.0f points. Assuming 2x dislikes, we could score \
-     %.0f points\n"
-    best
-    realistic
+  printf "%.0f\n" best
 ;;
 
 let score ~dir problem_id =
