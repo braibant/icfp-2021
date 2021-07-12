@@ -25,3 +25,4 @@ val sq_length : t -> Bignum.t
 val unit_length : t -> t
 val scale : t -> Bignum.t -> t
 val normalize_dir : t -> t
+val dirs : t list

@@ -11,6 +11,7 @@ type t =
   }
 [@@deriving fields]
 
+let update_vertex t v p = { t with vertices = Int.Map.set t.vertices ~key:v ~data:p }
 let vertex t idx = Map.find_exn t.vertices idx
 
 let segment t (a, b) =

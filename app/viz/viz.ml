@@ -317,6 +317,13 @@ module State = struct
   ;;
 
   let toggle_repulsion_physics t = { t with repulsion_physics = not t.repulsion_physics }
+
+  let optimize t =
+    Printf.eprintf "Calling the optimizer\n%!";
+    match Optimizer.optimize1 t.pose with
+    | Some pose -> { t with pose; history = Move_points t.pose :: t.history }
+    | None -> t
+  ;;
 end
 
 open State
@@ -769,6 +776,7 @@ let rec interact
   let toggle_repulsion_physics = ref false in
   let shift = ref (0, 0) in
   let tab_pressed = ref false in
+  let optimize = ref false in
   let () =
     while G.key_pressed () do
       match G.read_key () with
@@ -806,6 +814,7 @@ let rec interact
       | 'P' -> spring_physics := 100
       | 'd' -> toggle_drag_physics := true
       | 'e' -> toggle_repulsion_physics := true
+      | 'i' -> optimize := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in
@@ -831,6 +840,7 @@ let rec interact
   let state = if !freeze_all_pressed then State.freeze_all state else state in
   let state = if !unfreeze_all_pressed then State.unfreeze_all state else state in
   let state = if !toggle_drag_physics then State.toggle_drag_physics state else state in
+  let state = if !optimize then State.optimize state else state in
   let state =
     if !toggle_repulsion_physics then State.toggle_repulsion_physics state else state
   in

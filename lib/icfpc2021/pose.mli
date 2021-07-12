@@ -16,6 +16,9 @@ val save_exn : t -> frozen_vertices:Int.Set.t -> filename:string -> unit
 (* Get segment from edge *)
 val segment : t -> Edge.t -> Segment.t
 
+(* Updtate *)
+val update_vertex : t -> int -> Point.t -> t
+
 (* get vertex by number *)
 val vertex : t -> int -> Point.t
 

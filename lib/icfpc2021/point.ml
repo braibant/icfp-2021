@@ -29,14 +29,25 @@ let unit_length t =
   scale t k
 ;;
 
+module Dirs = struct
+  open Bignum
+
+  let up = { x = zero; y = one }
+  let down = { x = zero; y = zero - one }
+  let right = { x = one; y = zero }
+  let left = { x = zero - one; y = zero }
+end
+
 (* Normalize the given vector to one of U, L, D, R. We could be more precise here, and consider 8 neighbours. *)
 let normalize_dir (t : t) : t =
   let open Bignum in
   if t.y >= abs t.x (* U *)
-  then { x = zero; y = one }
+  then Dirs.up
   else if t.y <= zero - abs t.x (* D *)
-  then { x = zero; y = zero - one }
+  then Dirs.down
   else if zero <= t.x
-  then { x = one; y = zero }
-  else { x = zero - one; y = zero }
+  then Dirs.right
+  else Dirs.left
 ;;
+
+let dirs = Dirs.[ up; down; left; right ]
