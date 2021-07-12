@@ -92,23 +92,27 @@ let commands =
              let initial_dislike = Pose.dislikes pose in
              Printf.eprintf "Initial dislikes %i\n%!" initial_dislike;
              let pose = ref pose in
-             try
-               while true do
-                 match Optimizer.optimize1 !pose with
-                 | Some p' ->
-                   Printf.eprintf "Improved dislikes to %i\n%!" (Pose.dislikes p');
-                   pose := p'
-                 | None -> raise Done
-               done;
-               assert false
-             with
-             | Done ->
-               let new_dislikes = Pose.dislikes !pose in
-               if new_dislikes < initial_dislike
-               then (
-                 Printf.eprintf "Improved by %i\n%!" (initial_dislike - new_dislikes);
-                 Pose.save_exn !pose ~frozen_vertices:frozen ~filename:pose_filename)
-               else Printf.eprintf "No improvement\n%!") )
+             if initial_dislike = 0
+             then ()
+             else (
+               try
+                 Sys.catch_break true;
+                 while true do
+                   match Optimizer.optimize1 !pose with
+                   | Some p' ->
+                     Printf.eprintf "Improved dislikes to %i\n%!" (Pose.dislikes p');
+                     pose := p'
+                   | None -> raise Done
+                 done;
+                 assert false
+               with
+               | Done | Sys.Break ->
+                 let new_dislikes = Pose.dislikes !pose in
+                 if new_dislikes < initial_dislike
+                 then (
+                   Printf.eprintf "Improved by %i\n%!" (initial_dislike - new_dislikes);
+                   Pose.save_exn !pose ~frozen_vertices:frozen ~filename:pose_filename)
+                 else Printf.eprintf "No improvement\n%!")) )
     ]
 ;;
 
