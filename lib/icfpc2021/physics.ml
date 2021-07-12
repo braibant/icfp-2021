@@ -166,7 +166,7 @@ let electrify t ~frozen ~vertex : Forces.t =
   let (m : (int * Vec.t * float) array) =
     distances_from t ~vertex
     |> Int.Map.to_alist
-    |> Array.of_list_map ~f:(fun (v, d) -> v, vec t v, 1.05 ** Float.of_int d)
+    |> Array.of_list_map ~f:(fun (v, d) -> v, vec t v, Float.of_int (d * d))
   in
   let f = ref Forces.empty in
   for i = 0 to Array.length m - 1 do
@@ -175,6 +175,7 @@ let electrify t ~frozen ~vertex : Forces.t =
     then ()
     else f := Int.Map.set !f ~key:v ~data:(electric_force p d m)
   done;
+  Printf.eprintf "%f\n%!" (Forces.energy !f);
   !f
 ;;
 
@@ -194,7 +195,7 @@ let _electrify t ~frozen ~vertex : Forces.t =
 ;;
 
 let electrify t ~frozen ~vertex : Forces.t =
-  Forces.mix (electrify t ~frozen ~vertex) (edges t ~frozen)
+  Forces.mix 2. (electrify t ~frozen ~vertex) 1. (edges t ~frozen)
 ;;
 
 (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
