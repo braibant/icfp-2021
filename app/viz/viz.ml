@@ -77,6 +77,7 @@ module State = struct
   type t =
     { selected_vertex : int option
     ; drag_physics : bool
+    ; repulsion_physics : bool
     ; manually_frozen_vertices : Int.Set.t
     ; pose : Pose.t
     ; history : Operation.t list
@@ -87,6 +88,7 @@ module State = struct
   let create ~pose ~manually_frozen_vertices =
     { selected_vertex = None
     ; drag_physics = false
+    ; repulsion_physics = false
     ; pose
     ; manually_frozen_vertices
     ; history = []
@@ -299,6 +301,22 @@ module State = struct
   ;;
 
   let toggle_drag_physics t = { t with drag_physics = not t.drag_physics }
+
+  let repulsion_physics t ~vertex =
+    let pose = ref t.pose in
+    for _i = 0 to 19 do
+      let forces = Physics.electrify !pose ~vertex ~frozen:t.manually_frozen_vertices in
+      let vertices = Physics.relax_one !pose forces in
+      pose := Pose.set_vertices' t.pose vertices
+    done;
+    let vertices = Pose.vertices !pose in
+    { t with
+      pose = Pose.set_vertices' t.pose vertices
+    ; history = Move_points t.pose :: t.history
+    }
+  ;;
+
+  let toggle_repulsion_physics t = { t with repulsion_physics = not t.repulsion_physics }
 end
 
 open State
@@ -747,6 +765,7 @@ let rec interact
   let stop_solver = ref false in
   let spring_physics = ref 0 in
   let toggle_drag_physics = ref false in
+  let toggle_repulsion_physics = ref false in
   let shift = ref (0, 0) in
   let tab_pressed = ref false in
   let () =
@@ -785,6 +804,7 @@ let rec interact
       | 'p' -> spring_physics := 1
       | 'P' -> spring_physics := 100
       | 'd' -> toggle_drag_physics := true
+      | 'e' -> toggle_repulsion_physics := true
       | ch -> printf "Ignoring pressed key: '%c'\n%!" ch
     done
   in

@@ -21,3 +21,5 @@ let mix f1 f2 =
         let v = Vec.(scale l k1 + scale r k2) in
         if Vec.(v = zero) then None else Some v)
 ;;
+
+let empty = Int.Map.empty

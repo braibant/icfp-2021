@@ -32,6 +32,15 @@ let pose_vertex_to_hole_vertex_model (pv : Point.t) (hv : Point.t) (dislikes : F
     Vec.scale p Float.(d / dislikes))
 ;;
 
+(* The force exerced on a by b *)
+let repulsion_model pa pb : Vec.t =
+  if Vec.(pa = pb)
+  then Vec.zero
+  else (
+    let d2 = Vec.sq_distance pa pb in
+    Vec.(scale (unit_length (pa - pb)) (1. /. d2)))
+;;
+
 (* Compute the force exerced on vertex [a] by [b]. If the length of the edge
      is lower than our lower bound, [a] is "pushed away by b". If the length of
      the edge is longer than our upper bound, [a] is "attracted" toward other
@@ -79,6 +88,7 @@ let relatives t ~vertex ~distance =
   assert (0 <= distance);
   let neighbours = Pose.neighbours t in
   let v = Array.create ~len:(distance + 1) Int.Set.empty in
+  let visited = ref Int.Set.empty in
   let acc = ref (Int.Set.singleton vertex) in
   for i = 0 to distance do
     v.(i) <- !acc;
@@ -86,27 +96,58 @@ let relatives t ~vertex ~distance =
       Set.fold !acc ~init:Int.Set.empty ~f:(fun acc n ->
           Int.Set.union (Int.Set.of_list (Map.find_exn neighbours n)) acc)
     in
-    acc := next
+    acc := Int.Set.diff next !visited;
+    visited := Int.Set.union !visited next
   done;
   v
+;;
+
+(* Compute the set of all relatives *)
+let all_relatives t ~vertex =
+  let neighbours = Pose.neighbours t in
+  let result : Int.Set.t list ref = ref [] in
+  let visited = ref Int.Set.empty in
+  let acc = ref (Int.Set.singleton vertex) in
+  while not (Int.Set.is_empty !acc) do
+    result := !acc :: !result;
+    let next =
+      Set.fold !acc ~init:Int.Set.empty ~f:(fun acc n ->
+          Int.Set.union (Int.Set.of_list (Map.find_exn neighbours n)) acc)
+    in
+    acc := Int.Set.diff next !visited;
+    visited := Int.Set.union !visited next
+  done;
+  Array.of_list_rev !result
 ;;
 
 let drag t ~frozen ~vertex ~distance ~dampening_factor : Forces.t =
   let relatives = relatives t ~vertex ~distance in
   let forces = ref (edges t ~frozen) in
-  let visited = ref Int.Set.empty in
   let scale = ref 1.0 in
   for i = 1 to distance do
     let s = relatives.(i) in
-    let s = Int.Set.diff s !visited in
     Set.iter s ~f:(fun v ->
         match Map.find !forces v with
         | None -> ()
         | Some f -> forces := Map.set !forces ~key:v ~data:(Vec.scale f !scale));
-    visited := Set.union !visited s;
     scale := dampening_factor *. !scale
   done;
   !forces
+;;
+
+let electrify t ~frozen ~vertex : Forces.t =
+  let all_relatives = all_relatives t ~vertex in
+  let further_away = all_relatives.(Array.length all_relatives - 1) in
+  let charged = Int.Set.diff (Int.Set.add further_away vertex) frozen in
+  let charged = Int.Set.to_list charged in
+  (* Now, we compute interactions between all pairs *)
+  List.fold charged ~init:Forces.empty ~f:(fun acc a ->
+      let f =
+        List.fold charged ~init:Vec.zero ~f:(fun acc b ->
+            let f = repulsion_model (vec t a) (vec t b) in
+            Vec.(acc + f))
+      in
+      Int.Map.set acc ~key:a ~data:f)
 ;;
 
 (* We want to reduce dislike, by moving pose vertices closer to hole vertices,
