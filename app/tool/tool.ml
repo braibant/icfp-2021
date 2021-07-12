@@ -32,6 +32,8 @@ let score_all dir =
   List.map problem_ids ~f:(fun problem_id -> score ~dir problem_id)
 ;;
 
+exception Done
+
 let commands =
   let open Command.Let_syntax in
   Command.group
@@ -77,6 +79,36 @@ let commands =
              let state = Scores.load_exn state in
              let improved = Scores.improved state scores in
              Scores.print improved) )
+    ; ( "optimize"
+      , Command.basic
+          ~summary:"apply the optimizer"
+          (let%map_open filename = anon ("POSE" %: Filename.arg_type) in
+           fun () ->
+             let stem = Filename.chop_suffix filename ".answer.json" in
+             let pose_filename = stem ^ ".answer.json" in
+             let problem_filename = stem ^ ".json" in
+             let problem = Problem.load_exn ~filename:problem_filename in
+             let pose, frozen = Pose.load_exn ~problem ~filename:pose_filename in
+             let initial_dislike = Pose.dislikes pose in
+             Printf.eprintf "Initial dislikes %i\n%!" initial_dislike;
+             let pose = ref pose in
+             try
+               while true do
+                 match Optimizer.optimize1 !pose with
+                 | Some p' ->
+                   Printf.eprintf "Improved dislikes to %i\n%!" (Pose.dislikes p');
+                   pose := p'
+                 | None -> raise Done
+               done;
+               assert false
+             with
+             | Done ->
+               let new_dislikes = Pose.dislikes !pose in
+               if new_dislikes < initial_dislike
+               then (
+                 Printf.eprintf "Improved by %i\n%!" (initial_dislike - new_dislikes);
+                 Pose.save_exn !pose ~frozen_vertices:frozen ~filename:pose_filename)
+               else Printf.eprintf "No improvement\n%!") )
     ]
 ;;
 
