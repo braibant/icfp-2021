@@ -91,7 +91,7 @@ let relatives t ~vertex ~distance =
   v
 ;;
 
-let drag t ~frozen ~vertex ~distance : Forces.t =
+let drag t ~frozen ~vertex ~distance ~dampening_factor : Forces.t =
   let relatives = relatives t ~vertex ~distance in
   let forces = ref (edges t ~frozen) in
   let visited = ref Int.Set.empty in
@@ -104,7 +104,7 @@ let drag t ~frozen ~vertex ~distance : Forces.t =
         | None -> ()
         | Some f -> forces := Map.set !forces ~key:v ~data:(Vec.scale f !scale));
     visited := Set.union !visited s;
-    scale := 0.9 *. !scale
+    scale := dampening_factor *. !scale
   done;
   !forces
 ;;
