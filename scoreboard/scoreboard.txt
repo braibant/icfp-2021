@@ -1,4 +1,4 @@
-Mon 12 Jul 12:01:41 BST 2021
+Mon 12 Jul 12:31:41 BST 2021
    ICFPC2021problemsscores
    login
 
