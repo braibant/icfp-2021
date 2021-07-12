@@ -10,6 +10,12 @@ $ dune build @all
 $ _build/default/app/viz/viz.exe display problems/example1.json
 ```
 
+## Team
+
+- Dmitry Astapov (`dastapov AT gmail DOT com`)
+- Thomas Braibant (`thomas DOT braibant AT gmail DOT com`)
+- Alexandru Scvorţov (`icfp2021 AT scvalex DOT net`)
+
 ## Timeline
 
 - Initially implemented a GUI, with manual placing of vertices (day 1)
