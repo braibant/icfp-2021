@@ -1,6 +1,14 @@
 Solution to ICFPC 2021
 ======================
 
+![Screenshot](icfp2021.png "Screenshot")
+
+## Intro
+
+The main tool is `viz.exe` ([`app/viz/viz.ml`](app/viz/viz.ml)).
+Fundamentally, it's a UI to move nodes around and save poses, but it
+has lots of features to help with the mechanical work.
+
 ## Build & run
 
 ```
@@ -9,6 +17,12 @@ $ dune external-lib-deps --missing @all
 $ dune build @all
 $ _build/default/app/viz/viz.exe display problems/example1.json
 ```
+
+## Team
+
+- Dmitry Astapov (`dastapov AT gmail DOT com`)
+- Thomas Braibant (`thomas DOT braibant AT gmail DOT com`)
+- Alexandru Scvorţov (`icfp2021 AT scvalex DOT net`)
 
 ## Timeline
 
